@@ -1,6 +1,7 @@
 const express = require("express");
 const jobController = require("../controllers/job.controller");
 
+const pool = require("../config/db");
 const router = express.Router();
 
 /**
