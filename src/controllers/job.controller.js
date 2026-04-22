@@ -2,6 +2,7 @@ const jobService = require("../services/job.service");
 
 class JobController {
   async getAll(req, res) {
+    console.log("MASUK CONTROLLER 🔥");
     const jobs = await jobService.getAllJobs();
     res.json(jobs);
   }
