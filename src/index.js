@@ -7,9 +7,15 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// routes utama
 app.use("/api/v1/jobs", jobRoutes);
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
+app.get("/health", (req, res) => {
+  res.json({ status: "ok" });
+});
+
+// root
 app.get("/", (req, res) => {
   res.json({ message: "ITCareerMatch API is running!" });
 });
