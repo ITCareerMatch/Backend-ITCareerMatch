@@ -1,7 +1,5 @@
 const express = require("express");
 const jobController = require("../controllers/job.controller");
-
-const pool = require("../config/db");
 const router = express.Router();
 
 /**
@@ -40,10 +38,8 @@ const router = express.Router();
  *           type: string
  *         gender_required:
  *           type: string
- *         salary_min:
- *           type: integer
- *         salary_max:
- *           type: integer
+ *         salary:
+ *           type: string
  *         external_url:
  *           type: string
  *         source:
@@ -70,19 +66,21 @@ const router = express.Router();
  *     responses:
  *       200:
  *         description: List of jobs
- *   post:
- *     summary: Create a new job
- *     tags: [Jobs]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             $ref: '#/components/schemas/Job'
- *     responses:
- *       201:
- *         description: Job created
- *
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Job'
+ */
+
+/**
+ * @swagger
  * /api/v1/jobs/{id}:
  *   get:
  *     summary: Get job by ID
@@ -92,48 +90,16 @@ const router = express.Router();
  *         name: id
  *         required: true
  *         schema:
- *           type: string
+ *          type: string
+ *          format: uuid
  *     responses:
  *       200:
  *         description: Job found
  *       404:
  *         description: Job not found
- *   put:
- *     summary: Update job by ID
- *     tags: [Jobs]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             $ref: '#/components/schemas/Job'
- *     responses:
- *       200:
- *         description: Job updated
- *   delete:
- *     summary: Delete job by ID
- *     tags: [Jobs]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       204:
- *         description: Job deleted
  */
 
-router.get("/", (req, res) => jobController.getAll(req, res));
-router.get("/:id", (req, res) => jobController.getById(req, res));
-router.post("/", (req, res) => jobController.create(req, res));
-router.put("/:id", (req, res) => jobController.update(req, res));
-router.delete("/:id", (req, res) => jobController.delete(req, res));
+router.get("/", jobController.getAll);
+router.get("/:id", jobController.getById);
 
 module.exports = router;

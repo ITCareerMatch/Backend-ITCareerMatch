@@ -2,26 +2,67 @@ const jobService = require("../services/job.service");
 
 class JobController {
   async getAll(req, res) {
-    console.log("MASUK CONTROLLER 🔥");
-    const jobs = await jobService.getAllJobs();
-    res.json(jobs);
+    try {
+      const { page = 1, limit: rawLimit = 10, search, location } = req.query;
+
+      const pageNumber = Number(page) || 1;
+      const limit = Math.min(Number(rawLimit) || 10, 50);
+
+      const result = await jobService.getAllJobs({
+        page: pageNumber,
+        limit,
+        search: search?.trim(),
+        location: location?.trim(),
+      });
+
+      res.status(200).json({
+        success: true,
+        data: result.data,
+        meta: result.meta,
+      });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({
+        success: false,
+        message: "Internal server error",
+      });
+    }
   }
+
   async getById(req, res) {
-    const job = await jobService.getJobById(req.params.id);
-    if (!job) return res.status(404).json({ message: "Job not found" });
-    res.json(job);
-  }
-  async create(req, res) {
-    const job = await jobService.createJob(req.body);
-    res.status(201).json(job);
-  }
-  async update(req, res) {
-    const job = await jobService.updateJob(req.params.id, req.body);
-    res.json(job);
-  }
-  async delete(req, res) {
-    await jobService.deleteJob(req.params.id);
-    res.status(204).end();
+    try {
+      const id = req.params.id;
+
+      // validasi UUID (bukan number lagi)
+      const uuidRegex = /^[0-9a-fA-F-]{36}$/;
+
+      if (!uuidRegex.test(id)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid job ID format",
+        });
+      }
+
+      const job = await jobService.getJobById(id);
+
+      if (!job) {
+        return res.status(404).json({
+          success: false,
+          message: "Job not found",
+        });
+      }
+
+      res.status(200).json({
+        success: true,
+        data: job,
+      });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({
+        success: false,
+        message: "Internal server error",
+      });
+    }
   }
 }
 
