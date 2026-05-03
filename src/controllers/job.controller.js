@@ -1,4 +1,4 @@
-const jobService = require("../services/job.service");
+import jobService from "../services/job.service.js";
 
 class JobController {
   async getAll(req, res) {
@@ -66,4 +66,4 @@ class JobController {
   }
 }
 
-module.exports = new JobController();
+export default new JobController();

@@ -1,4 +1,4 @@
-const pool = require("../config/db");
+import pool from "../config/db.js";
 
 class JobRepository {
   async findAll({ page = 1, limit = 10, search, location }) {
@@ -50,4 +50,4 @@ class JobRepository {
   }
 }
 
-module.exports = new JobRepository();
+export default new JobRepository();

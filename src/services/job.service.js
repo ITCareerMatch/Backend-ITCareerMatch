@@ -1,4 +1,4 @@
-const jobRepository = require("../repositories/job.repository");
+import jobRepository from "../repositories/job.repository.js";
 
 class JobService {
   async getAllJobs(params) {
@@ -9,4 +9,4 @@ class JobService {
   }
 }
 
-module.exports = new JobService();
+export default new JobService();

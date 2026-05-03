@@ -1,7 +1,7 @@
-const express = require("express");
-const cors = require("cors");
-const jobRoutes = require("./routes/job.routes");
-const { swaggerUi, swaggerSpec } = require("./config/swagger");
+import express from "express";
+import cors from "cors";
+import jobRoutes from "./routes/job.routes.js";
+import { swaggerUi, swaggerSpec } from "./config/swagger.js";
 
 const app = express();
 app.use(cors());

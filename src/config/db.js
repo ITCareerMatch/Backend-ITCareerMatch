@@ -1,10 +1,12 @@
-require("dotenv").config();
+import dotenv from "dotenv";
+import pg from "pg";
 
-const { Pool } = require("pg");
+dotenv.config();
 
+const { Pool } = pg;
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false }, // Supabase butuh SSL
 });
 
-module.exports = pool;
+export default pool;

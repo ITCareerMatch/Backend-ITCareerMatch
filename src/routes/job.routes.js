@@ -1,5 +1,6 @@
-const express = require("express");
-const jobController = require("../controllers/job.controller");
+import express from "express";
+import jobController from "../controllers/job.controller.js";
+
 const router = express.Router();
 
 /**
@@ -102,4 +103,4 @@ const router = express.Router();
 router.get("/", jobController.getAll);
 router.get("/:id", jobController.getById);
 
-module.exports = router;
+export default router;
