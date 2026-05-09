@@ -1,47 +1,75 @@
 import jobService from "../services/job.service.js";
 
 class JobController {
-  async getAll(req, res) {
+  async getAll(req, res, next) {
     try {
-      const { page = 1, limit: rawLimit = 10, search, location } = req.query;
+      let {
+        page,
+        limit,
+        search,
+        city,
+        province,
+        minSalary,
+        maxSalary,
+        minAge,
+        maxAge,
+        education_level,
+        gender,
+        job_type,
+        work_system,
+      } = req.query;
 
-      const pageNumber = Number(page) || 1;
-      const limit = Math.min(Number(rawLimit) || 10, 50);
+      // Validasi dan set default value
+      page = Number(page);
+      if (isNaN(page) || page < 1) page = 1;
+
+      limit = Number(limit);
+      if (isNaN(limit) || limit < 1) limit = 10;
+      limit = Math.min(limit, 50);
+
+      minSalary = Number(minSalary);
+      if (isNaN(minSalary)) minSalary = undefined;
+
+      maxSalary = Number(maxSalary);
+      if (isNaN(maxSalary)) maxSalary = undefined;
+
+      minAge = Number(minAge);
+      if (isNaN(minAge)) minAge = undefined;
+
+      maxAge = Number(maxAge);
+      if (isNaN(maxAge)) maxAge = undefined;
+
+      // education_level dan gender biarkan string/null
 
       const result = await jobService.getAllJobs({
-        page: pageNumber,
+        page,
         limit,
-        search: search?.trim(),
-        location: location?.trim(),
+        search,
+        city,
+        province,
+        minSalary,
+        maxSalary,
+        minAge,
+        maxAge,
+        education_level,
+        gender,
+        job_type,
+        work_system,
       });
 
-      res.status(200).json({
+      res.json({
         success: true,
         data: result.data,
         meta: result.meta,
       });
-    } catch (error) {
-      console.error(error);
-      res.status(500).json({
-        success: false,
-        message: "Internal server error",
-      });
+    } catch (err) {
+      next(err);
     }
   }
 
-  async getById(req, res) {
+  async getById(req, res, next) {
     try {
-      const id = req.params.id;
-
-      // validasi UUID (bukan number lagi)
-      const uuidRegex = /^[0-9a-fA-F-]{36}$/;
-
-      if (!uuidRegex.test(id)) {
-        return res.status(400).json({
-          success: false,
-          message: "Invalid job ID format",
-        });
-      }
+      const { id } = req.params;
 
       const job = await jobService.getJobById(id);
 
@@ -52,16 +80,12 @@ class JobController {
         });
       }
 
-      res.status(200).json({
+      res.json({
         success: true,
         data: job,
       });
-    } catch (error) {
-      console.error(error);
-      res.status(500).json({
-        success: false,
-        message: "Internal server error",
-      });
+    } catch (err) {
+      next(err);
     }
   }
 }

@@ -1,5 +1,7 @@
 import express from "express";
 import jobController from "../controllers/job.controller.js";
+import { validateUUID } from "../middlewares/validator.middleware.js";
+import { authenticate } from "../middlewares/auth.middleware.js";
 
 const router = express.Router();
 
@@ -12,107 +14,88 @@ const router = express.Router();
 
 /**
  * @swagger
- * components:
- *   schemas:
- *     Job:
- *       type: object
- *       required:
- *         - title
- *         - company_name
- *       properties:
- *         id:
- *           type: string
- *           format: uuid
- *           description: Unique identifier for the job
- *         title:
- *           type: string
- *         company_name:
- *           type: string
- *         external_url:
- *           type: string
- *           format: uri
- *         category:
- *           type: string
- *
- *         education_level:
- *           type: string
- *         experience_level:
- *           type: string
- *         job_type:
- *           type: string
- *           description: Full-time | Contract | Part-time
- *         work_system:
- *           type: string
- *           description: On-site | Remote | Hybrid
- *         gender_required:
- *           type: string
- *           description: male | female | both
- *
- *         location:
- *           type: string
- *           description: Raw location string from source
- *         city:
- *           type: string
- *         province:
- *           type: string
- *
- *         salary_raw:
- *           type: string
- *           description: Raw salary string for display
- *         salary_min:
- *           type: integer
- *           format: int64
- *         salary_max:
- *           type: integer
- *           format: int64
- *
- *         age_note:
- *           type: string
- *         min_age:
- *           type: integer
- *         max_age:
- *           type: integer
- *
- *         requirements:
- *           type: string
- *
- *         is_active:
- *           type: boolean
- *           default: true
- *         created_at:
- *           type: string
- *           format: date-time
- *         updated_at:
- *           type: string
- *           format: date-time
- */
-
-/**
- * @swagger
- * /api/v1/jobs:
+ * /api/jobs:
  *   get:
  *     summary: Get all jobs
  *     tags: [Jobs]
- *     description: Retrieve all jobs with optional filtering (future support query params)
+ *     description: Retrieve jobs with filtering & pagination
+ *
+ *     parameters:
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: Search by job title
+ *
+ *       - in: query
+ *         name: city
+ *         schema:
+ *           type: string
+ *         description: Filter by city
+ *
+ *       - in: query
+ *         name: province
+ *         schema:
+ *           type: string
+ *         description: Filter by province
+ *
+ *       - in: query
+ *         name: minSalary
+ *         schema:
+ *           type: integer
+ *         description: Minimum salary
+ *
+ *       - in: query
+ *         name: maxSalary
+ *         schema:
+ *           type: integer
+ *         description: Maximum salary
+ *
+ *       - in: query
+ *         name: minAge
+ *         schema:
+ *           type: integer
+ *         description: Minimum age
+ *
+ *       - in: query
+ *         name: maxAge
+ *         schema:
+ *           type: integer
+ *         description: Maximum age
+ *
+ *       - in: query
+ *         name: education_level
+ *         schema:
+ *           type: string
+ *         description: Filter by education level
+ *
+ *       - in: query
+ *         name: gender
+ *         schema:
+ *           type: string
+ *           enum: [male, female, both]
+ *         description: Filter by gender
+ *
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *         description: Page number
+ *
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *         description: Number of items per page
+ *
  *     responses:
  *       200:
- *         description: List of jobs retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                 data:
- *                   type: array
- *                   items:
- *                     $ref: '#/components/schemas/Job'
+ *         description: List of jobs
  */
 
 /**
  * @swagger
- * /api/v1/jobs/{id}:
+ * /api/jobs/{id}:
  *   get:
  *     summary: Get job by ID
  *     tags: [Jobs]
@@ -135,12 +118,66 @@ const router = express.Router();
  *                 success:
  *                   type: boolean
  *                 data:
- *                   $ref: '#/components/schemas/Job'
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                     title:
+ *                       type: string
+ *                     company_name:
+ *                       type: string
+ *                     city:
+ *                       type: string
+ *                     province:
+ *                       type: string
+ *                     location:
+ *                       type: string
+ *                     salary_raw:
+ *                       type: string
+ *                     salary_min:
+ *                       type: integer
+ *                     salary_max:
+ *                       type: integer
+ *                     min_age:
+ *                       type: integer
+ *                     max_age:
+ *                       type: integer
+ *                     age_note:
+ *                       type: string
+ *                     education_level:
+ *                       type: string
+ *                     gender_required:
+ *                       type: string
+ *                     job_type:
+ *                       type: string
+ *                     work_system:
+ *                       type: string
+ *                     requirements:
+ *                       type: string
+ *                     skills:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *                     created_at:
+ *                       type: string
+ *                       format: date-time
+ *                     updated_at:
+ *                       type: string
+ *                       format: date-time
  *       404:
  *         description: Job not found
+ *     security:
+ *       - bearerAuth: []
+ *     description: |
+ *       **Authorization header:**
+ *
+ *           Bearer ... (token)
+ *
+ *       Contoh:
+ *           Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
  */
 
 router.get("/", jobController.getAll);
-router.get("/:id", jobController.getById);
+router.get("/:id", validateUUID, authenticate, jobController.getById);
 
 export default router;

@@ -4,16 +4,18 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "nodemon src/index.js",
     "start": "node src/index.js",
-    "dev": "nodemon src/index.js"
+    "swagger:generate": "node scripts/generate-swagger.js",
+    "contract:generate": "widdershins swagger.json -o API_CONTRACT.md",
+    "docs:generate": "npm run swagger:generate && npm run contract:generate"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "@supabase/supabase-js": "^2.105.1",
+    "@supabase/supabase-js": "^2.105.3",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
