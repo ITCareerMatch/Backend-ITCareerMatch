@@ -14,9 +14,11 @@
 7. [Input & Output AI](#7-input--output-ai)
 8. [Data yang Disimpan Permanen](#8-data-yang-disimpan-permanen)
 9. [REST API Structure](#9-rest-api-structure)
-10. [Authentication](#10-authentication)
-11. [Workflow Tim](#11-workflow-tim)
-12. [Kesimpulan Final](#12-kesimpulan-final)
+10. [Catatan Penting per Endpoint](#10-catatan-penting-per-endpoint)
+11. [Keterkaitan Endpoint dengan Tabel DB](#11-keterkaitan-endpoint-dengan-tabel-db)
+12. [Authentication](#12-authentication)
+13. [Workflow Tim](#13-workflow-tim)
+14. [Kesimpulan Final](#14-kesimpulan-final)
 
 ---
 
@@ -26,8 +28,8 @@ ITCareerMatch menggunakan pendekatan **Decoupled / Separated Services Architectu
 
 | Layer | Teknologi |
 |---|---|
-| Frontend | Next.js / React |
-| Backend Utama | Express.js / Node.js (sebagai *Orchestrator*) |
+| Frontend | React.js |
+| Backend Utama | Express.js |
 | AI Service | FastAPI + Python |
 | Database & Auth | Supabase (PostgreSQL + Supabase Auth + Storage) |
 | Queue / Worker | BullMQ + Redis *(atau alternatif: Celery, RabbitMQ)* |
@@ -39,9 +41,9 @@ ITCareerMatch menggunakan pendekatan **Decoupled / Separated Services Architectu
 - Memisahkan tanggung jawab antar tim dengan jelas
 
 ```
-Frontend (Next.js)
+Frontend (React.js)
      ↓
-Backend Express (Orchestrator)
+Backend Express
      ↓
 Queue / Worker (BullMQ + Redis)
      ↓
@@ -58,14 +60,14 @@ Supabase (PostgreSQL + Storage)
 
 ### 🔷 Backend Engineer (BE)
 
-Backend berperan sebagai **orchestrator** utama — penghubung antara Frontend, Database, dan AI Service.
+Backend berperan sebagai **penghubung** utama — antara Frontend, Database, dan AI Service.
 
 **Tugas:**
 - Menyediakan REST API untuk Frontend
 - Verifikasi JWT dari Supabase Auth
 - Menerima upload CV dari user
 - Parsing PDF → plain text (`cv_text`)
-- Hard filtering jobs sebelum dikirim ke AI
+- Filtering jobs sebelum dikirim ke AI
 - Mengatur Queue / Background Task
 - Memanggil AI API dan meneruskan hasilnya
 - Menyimpan hasil analisis ke database
@@ -102,8 +104,8 @@ DS bertugas menyiapkan data lowongan kerja dan skill agar siap diproses AI.
 
 **Tugas:**
 - Scraping & cleaning data lowongan
-- Standarisasi nama skill (contoh: `React`, `react js`, `ReactJS` → dipetakan ke 1 skill ID)
-- Mengisi tabel `jobs`, `skills`, `job_skills`
+- Standarisasi nama skill (contoh: `React`, `react js`, `ReactJS` → dipetakan ke 1 skill ID → dibantu backend di supabase langsung)
+- Mengisi tabel `jobs` ( untuk tabel `skills`, `job_skills` dibantu backend)
 - Quality control dataset
 
 ---
@@ -160,7 +162,6 @@ Table users {
 Table skills {
   id   uuid    [primary key, default: `gen_random_uuid()`]
   name varchar [unique, not null]
-  type varchar [note: 'technical | soft']
 }
 
 // ─────────────────────────────────────────
@@ -389,13 +390,19 @@ Sebelum mengirimkan data ke AI, Backend melakukan **hard filtering** jobs terleb
 ---
 
 ## 9. REST API Structure
+> **Catatan Arsitektur:**
+> - Semua endpoint backend diawali `/api/v1/` (versioning)
+> - Frontend **tidak boleh** memanggil AI API secara langsung
+> - Internal endpoint hanya bisa dipanggil Backend → AI Service
+> - Apply pekerjaan dilakukan via `external_url` dari data job (redirect ke platform eksternal seperti Glints, LinkedIn, dll.) — **tidak ada endpoint apply di backend kita**
 
 ### A. Public Endpoints *(Tanpa JWT)*
 
 | Method | Endpoint | Fungsi |
 |---|---|---|
-| `POST` | `/api/v1/public/cv/upload` | Upload CV, parsing ke text, return skor matching global *(tidak simpan riwayat detail)* |
-| `GET` | `/api/v1/public/jobs` | List lowongan kerja umum *(dengan pagination)* |
+| `POST` | `/api/v1/cv/upload` | Upload CV guest, parsing di memory, return skor singkat sebagai preview — **tidak ada yang disimpan ke DB, CV langsung dibuang setelah response dikirim** |
+| `GET` | `/api/v1/jobs` | List semua lowongan aktif (pagination) |
+| `GET` | `/api/v1/jobs/:id` | Detail info lowongan: deskripsi, requirement, lokasi, dll. (data statis dari tabel `jobs`) |
 
 ---
 
@@ -403,15 +410,25 @@ Sebelum mengirimkan data ke AI, Backend melakukan **hard filtering** jobs terleb
 
 | Method | Endpoint | Fungsi |
 |---|---|---|
-| `GET` | `/api/v1/user/profile` | Ambil data profil user |
-| `POST` | `/api/v1/cv/analyze` | Jalankan proses AI *(async)*, return `task_id` |
-| `GET` | `/api/v1/cv/status/:task_id` | Cek status antrian AI *(polling)* |
-| `GET` | `/api/v1/analysis/history` | List riwayat analisis user |
-| `GET` | `/api/v1/analysis/:id` | Detail analisis: match, gap, AI insight |
-| `GET` | `/api/v1/jobs/recommendations` | Top-20 job berdasarkan match_score |
-| `POST` | `/api/v1/cv/optimize` | Optimasi CV dengan AI |
-| `POST` | `/api/v1/jobs/:id/apply` | Lamar pekerjaan |
-| `POST` | `/api/v1/chatbot` | Chat AI berbasis konteks CV + Job |
+| `GET` | `/api/user/profile` | Ambil data profil user |
+| `POST` | `/api/cv/analyze` | Jalankan proses AI *(async)*, return `task_id` |
+| `GET` | `/api/cv/status/:task_id` | Cek status antrian AI *(polling)* |
+| `GET` | `/api/analysis/history` | List riwayat analisis user |
+| `GET` | `/api/analysis/:id` | Detail analisis: match, gap, AI insight |
+| `GET` | `/api/jobs/recommendations` | Top-20 job berdasarkan match_score |
+| `POST` | `/api/cv/optimize` | Optimasi CV dengan AI |
+| `POST` | `/api/jobs/:id/apply` | Lamar pekerjaan |
+| `POST` | `/api/chatbot` | Chat AI berbasis konteks CV + Job |
+
+| Method | Endpoint | Fungsi |
+|---|---|---|
+| `GET` | `/api/v1/user/profile` | Ambil data profil user yang sedang login |
+| `POST` | `/api/v1/cv/analyze` | Upload CV user (login), simpan ke `cv_archives`, trigger proses AI secara async → return `task_id` untuk polling |
+| `GET` | `/api/v1/cv/status/:task_id` | Cek status antrian AI: `processing` / `completed` / `failed` |
+| `GET` | `/api/v1/analysis/history` | List seluruh riwayat analisis yang pernah dilakukan user |
+| `GET` | `/api/v1/analysis/:id` | Detail hasil AI untuk satu analisis: skill match, skill gap, AI insight (data dari `analysis_history` + `analysis_details`) |
+| `GET` | `/api/v1/jobs/recommendations` | List Top-20 lowongan yang paling cocok dengan CV user, diurutkan berdasarkan `match_score` — **personal per user** |
+| `POST` | `/api/chatbot` | Chat AI berbasis konteks CV + Job |
 
 ---
 
@@ -419,14 +436,64 @@ Sebelum mengirimkan data ke AI, Backend melakukan **hard filtering** jobs terleb
 
 | Method | Endpoint | Fungsi |
 |---|---|---|
-| `POST` | `/internal/ai/extract` | Ekstraksi skill dari `cv_text` |
-| `POST` | `/internal/ai/match` | Hitung SBERT similarity antara CV dan `filtered_jobs` |
+| `POST` | `/internal/ai/extract` | Ekstraksi skill dari `cv_text` → mapping ke tabel `skills` |
+| `POST` | `/internal/ai/match` | Hitung SBERT similarity antara `cv_text` dan `filtered_jobs` → return scoring + skill gap |
 
 > Frontend **tidak boleh** mengakses endpoint internal ini secara langsung.
 
 ---
 
-## 10. Authentication
+## 10. Catatan Penting per Endpoint
+ 
+### POST /api/v1/public/cv/upload vs POST /api/v1/cv/analyze
+ 
+Dua endpoint ini berbeda tujuan dan perilakunya secara fundamental:
+ 
+| | Public Upload | Protected Analyze |
+|---|---|---|
+| **Siapa** | Guest (belum login) | User yang sudah login |
+| **CV disimpan?** | ❌ Tidak — diproses di memory, langsung dibuang | ✅ Ya — disimpan ke `cv_archives` (termasuk `raw_text`) |
+| **Hasil disimpan?** | ❌ Tidak | ✅ Ya — ke `analysis_history` & `analysis_details` |
+| **Output** | Skor singkat / preview saja | Analisis lengkap + riwayat tersimpan |
+| **Bisa diakses ulang?** | ❌ Tidak | ✅ Ya, lewat `/analysis/history` |
+| **Perlu upload ulang setelah login?** | ✅ Ya, kalau mau analisis lengkap | — |
+ 
+> **Kenapa begini?** Mengacu dari diskusi tim (Ulil): tujuan menyimpan `extracted_cv` / `raw_text` adalah *"agar saat user mencari rekomendasi job lagi di hari lain, AI tidak perlu mengulang proses dari nol."* Konteks ini sudah jelas untuk user yang punya akun — bukan guest. Skenario "klaim CV guest setelah login" tidak pernah dibahas dan menambah kompleksitas yang tidak perlu untuk saat ini.
+ 
+---
+ 
+### GET /api/v1/jobs/:id vs GET /api/v1/analysis/:id
+ 
+Dua endpoint ini sering dikira sama, tapi isinya sangat berbeda:
+ 
+| | `/jobs/:id` | `/analysis/:id` |
+|---|---|---|
+| **Isi** | Info statis lowongan (dari tabel `jobs`) | Hasil AI untuk user ini (dari `analysis_history` + `analysis_details`) |
+| **Personal?** | ❌ Sama untuk semua user | ✅ Berbeda per user |
+| **Perlu login?** | ❌ Public | ✅ Protected (JWT) |
+| **Contoh isi** | Judul, perusahaan, lokasi, requirement, `external_url` | Match score, skill match, skill gap, AI insight |
+ 
+Keduanya bisa ditampilkan **bersama** di halaman detail lowongan — FE cukup hit dua endpoint dan gabungkan hasilnya — tapi tetap dari dua endpoint yang berbeda.
+ 
+---
+
+## 11. Keterkaitan Endpoint dengan Tabel DB
+ 
+| Endpoint | Tabel yang Terlibat |
+|---|---|
+| `POST /public/cv/upload` | — *(tidak ada, diproses di memory)* |
+| `POST /cv/analyze` | `cv_archives`, `cv_skills`, `analysis_history`, `analysis_details` |
+| `GET /cv/status/:task_id` | `cv_archives` (kolom `status`) |
+| `GET /jobs` | `jobs`, `job_skills`, `skills` |
+| `GET /jobs/:id` | `jobs`, `job_skills`, `skills` |
+| `GET /jobs/recommendations` | `analysis_history`, `jobs` |
+| `GET /analysis/history` | `analysis_history` |
+| `GET /analysis/:id` | `analysis_history`, `analysis_details`, `skills` |
+| `GET /user/profile` | `users` |
+
+---
+
+## 12. Authentication
 
 **Menggunakan Supabase Auth.**
 
@@ -444,14 +511,14 @@ Protected route menggunakan middleware JWT verification di Express.
 
 ---
 
-## 11. Workflow Tim
+## 13. Workflow Tim
 
 ### 🔷 Frontend (FE)
-- Slicing UI dari desain
-- Integrasi dengan mock API / Swagger docs
-- Implementasi auth Supabase di sisi client
-- State management
-- Polling status antrian AI
+1. Slicing UI dari desain
+2. Integrasi dengan mock API / Swagger docs
+3. Implementasi auth Supabase di sisi client
+4. State management
+5. Polling status antrian AI
 
 > FE **tidak perlu menunggu BE selesai** — bisa mulai dengan mock JSON dan endpoint contract dari Swagger.
 
@@ -487,7 +554,7 @@ Prioritas awal:
 
 ---
 
-## 12. Kesimpulan Final
+## 14. Kesimpulan Final
 
 ### Keputusan-Keputusan yang Telah Disepakati
 
