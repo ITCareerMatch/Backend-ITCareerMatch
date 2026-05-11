@@ -88,26 +88,30 @@ AI berjalan sebagai **service terpisah** menggunakan FastAPI + Python.
 - Lebih scalable dan modular
 
 **Tugas:**
+- Membangun **pipeline preprocessing** berdasarkan tahapan yang ditentukan DS
 - Preprocessing `cv_text` (menghilangkan noise: umur, alamat, email, dll.)
 - Ekstraksi skill dari CV
 - Similarity scoring menggunakan SBERT
 - Skill gap analysis *(metode masih dikaji: NER atau Gen AI)*
 - AI insight & rekomendasi pekerjaan
 
-**Catatan:** AI hanya menerima request dari Backend. Input yang diterima adalah **teks** (bukan PDF mentah).
+**Catatan:** AI menerima `cv_text` (teks bersih hasil parsing Backend), **bukan PDF mentah**.
 
 ---
 
 ### 🟢 Data Scientist (DS)
 
-DS bertugas menyiapkan data lowongan kerja dan skill agar siap diproses AI.
+DS bertugas menyiapkan data lowongan kerja dan skill agar siap diproses AI, serta **menentukan tahapan preprocessing** yang akan diimplementasikan AI Engineer ke dalam pipeline.
 
 **Tugas:**
 - Scraping & cleaning data lowongan
+- **Menentukan tahapan preprocessing** (cleaning → normalisasi → siap diproses model)
 - Standarisasi nama skill (contoh: `React`, `react js`, `ReactJS` → dipetakan ke 1 skill ID → dibantu backend di supabase langsung)
 - Mengisi tabel `jobs` ( untuk tabel `skills`, `job_skills` dibantu backend)
 - Quality control dataset
 
+> DS menentukan **apa** yang dilakukan preprocessing. AI Engineer membangun **pipeline-nya**.
+ 
 ---
 
 ## 3. Struktur Database
@@ -410,25 +414,12 @@ Sebelum mengirimkan data ke AI, Backend melakukan **hard filtering** jobs terleb
 
 | Method | Endpoint | Fungsi |
 |---|---|---|
-| `GET` | `/api/user/profile` | Ambil data profil user |
-| `POST` | `/api/cv/analyze` | Jalankan proses AI *(async)*, return `task_id` |
-| `GET` | `/api/cv/status/:task_id` | Cek status antrian AI *(polling)* |
-| `GET` | `/api/analysis/history` | List riwayat analisis user |
-| `GET` | `/api/analysis/:id` | Detail analisis: match, gap, AI insight |
-| `GET` | `/api/jobs/recommendations` | Top-20 job berdasarkan match_score |
-| `POST` | `/api/cv/optimize` | Optimasi CV dengan AI |
-| `POST` | `/api/jobs/:id/apply` | Lamar pekerjaan |
-| `POST` | `/api/chatbot` | Chat AI berbasis konteks CV + Job |
-
-| Method | Endpoint | Fungsi |
-|---|---|---|
 | `GET` | `/api/v1/user/profile` | Ambil data profil user yang sedang login |
 | `POST` | `/api/v1/cv/analyze` | Upload CV user (login), simpan ke `cv_archives`, trigger proses AI secara async → return `task_id` untuk polling |
 | `GET` | `/api/v1/cv/status/:task_id` | Cek status antrian AI: `processing` / `completed` / `failed` |
+| `GET` | `/api/v1/jobs/recommendations` | List Top-20 lowongan yang paling cocok dengan CV user, diurutkan berdasarkan `match_score` — **personal per user** |
 | `GET` | `/api/v1/analysis/history` | List seluruh riwayat analisis yang pernah dilakukan user |
 | `GET` | `/api/v1/analysis/:id` | Detail hasil AI untuk satu analisis: skill match, skill gap, AI insight (data dari `analysis_history` + `analysis_details`) |
-| `GET` | `/api/v1/jobs/recommendations` | List Top-20 lowongan yang paling cocok dengan CV user, diurutkan berdasarkan `match_score` — **personal per user** |
-| `POST` | `/api/chatbot` | Chat AI berbasis konteks CV + Job |
 
 ---
 
@@ -476,20 +467,43 @@ Dua endpoint ini sering dikira sama, tapi isinya sangat berbeda:
 Keduanya bisa ditampilkan **bersama** di halaman detail lowongan — FE cukup hit dua endpoint dan gabungkan hasilnya — tapi tetap dari dua endpoint yang berbeda.
  
 ---
+ 
+### GET /api/v1/jobs/recommendations
+ 
+Ini bukan sekadar list semua job — ini adalah **hasil personalisasi AI**:
+- Hanya tersedia setelah user pernah melakukan analisis CV (`POST /cv/analyze`)
+- Diurutkan berdasarkan `match_score` dari tabel `analysis_history`
+- Menampilkan maksimal Top-20 job terbaik untuk user tersebut
+- Berbeda antar user karena berdasarkan CV masing-masing
+---
+ 
+### Fitur yang Di-cut dari Scope (Deadline 3 Minggu)
+ 
+Fokus core fitur saat ini:
+- ✅ Job Recommendation
+- ✅ Similarity Score
+- ✅ Skill Gap Analysis
+  
+| Fitur | Status | Alasan |
+|---|---|---|
+| `POST /api/v1/cv/optimize` | ⏳ Fitur lanjutan | Bukan core, dikerjakan setelah deadline utama |
+| `POST /api/v1/chatbot` | ❌ Di-cut dari scope | Butuh lebih banyak waktu (Gen AI), tidak masuk deadline 3 minggu — keputusan diskusi tim |
+ 
+---
 
 ## 11. Keterkaitan Endpoint dengan Tabel DB
  
 | Endpoint | Tabel yang Terlibat |
 |---|---|
-| `POST /public/cv/upload` | — *(tidak ada, diproses di memory)* |
-| `POST /cv/analyze` | `cv_archives`, `cv_skills`, `analysis_history`, `analysis_details` |
-| `GET /cv/status/:task_id` | `cv_archives` (kolom `status`) |
-| `GET /jobs` | `jobs`, `job_skills`, `skills` |
-| `GET /jobs/:id` | `jobs`, `job_skills`, `skills` |
-| `GET /jobs/recommendations` | `analysis_history`, `jobs` |
-| `GET /analysis/history` | `analysis_history` |
-| `GET /analysis/:id` | `analysis_history`, `analysis_details`, `skills` |
-| `GET /user/profile` | `users` |
+| `POST /api/v1/cv/upload` | — *(tidak ada, diproses di memory)* |
+| `POST /api/v1/cv/analyze` | `cv_archives`, `cv_skills`, `analysis_history`, `analysis_details` |
+| `GET /api/v1/cv/status/:task_id` | `cv_archives` (kolom `status`) |
+| `GET /api/v1/jobs` | `jobs`, `job_skills`, `skills` |
+| `GET /api/v1/jobs/:id` | `jobs`, `job_skills`, `skills` |
+| `GET /api/v1/jobs/recommendations` | `analysis_history`, `jobs` |
+| `GET /api/v1/analysis/history` | `analysis_history` |
+| `GET /api/v1/analysis/:id` | `analysis_history`, `analysis_details`, `skills` |
+| `GET /api/v1/user/profile` | `users` |
 
 ---
 
@@ -537,20 +551,22 @@ Prioritas awal:
 
 ### 🟣 AI Engineer
 Prioritas awal:
-1. Preprocessing pipeline (`cv_text` → cleaned text)
-2. Implementasi SBERT untuk similarity scoring
-3. Skill extraction (NER atau Gen AI — masih dikaji)
-4. Bangun FastAPI service
-5. Definisikan schema response (JSON output)
-
+1. **Implementasi pipeline preprocessing** (berdasarkan tahapan dari DS)
+2. Ekstraksi skill *(NER atau Gen AI — masih dikaji)*
+3. Implementasi SBERT untuk similarity scoring
+4. Skill gap analysis
+5. Bangun FastAPI service
+6. Definisikan schema response (JSON output)
+   
 ---
 
 ### 🟢 Data Scientist (DS)
 Prioritas awal:
 1. Cleaning dataset hasil scraping
-2. Standarisasi dan mapping skill
-3. Populasi tabel `jobs`, `skills`, `job_skills`
-4. Quality control data
+2. **Menentukan tahapan preprocessing** (cleaning → normalisasi → siap diproses model)
+3. Standarisasi dan mapping skill
+4. Populasi tabel `jobs`, `skills`, `job_skills`
+5. Quality control data
 
 ---
 
@@ -561,7 +577,9 @@ Prioritas awal:
 | Topik | Keputusan |
 |---|---|
 | Integrasi AI | FastAPI terpisah, bukan tensorflow.js di client |
-| Input ke AI | `cv_text` (plain text), bukan PDF mentah |
+| Parsing PDF | Tugas Backend (bukan AI atau DS) |
+| Pipeline preprocessing | Ditentukan DS, diimplementasikan AI Engineer |
+| Input ke AI | `cv_text` (plain text hasil parsing Backend), bukan PDF mentah |
 | Proses analisis | **Asynchronous / Queue** (BullMQ + Redis) |
 | Display rekomendasi | **Top-20 jobs** (bukan threshold >70%) |
 | Master skill | Dipisah ke tabel `skills` tersendiri |
@@ -569,6 +587,8 @@ Prioritas awal:
 | Data tersimpan | `raw_text`, `cv_skills`, `analysis_history`, `analysis_details` |
 | Auth | Supabase Auth + JWT verification di BE |
 | Swagger | Digunakan sebagai kontrak FE ↔ BE |
+| Scope fitur (deadline 3 minggu) | **Core only**: Job Recommendation, Similarity Score, Skill Gap Analysis |
+| Chatbot | ❌ Di-cut — butuh waktu lebih, tidak masuk deadline |
 
 ### Flow Akhir Sistem
 
