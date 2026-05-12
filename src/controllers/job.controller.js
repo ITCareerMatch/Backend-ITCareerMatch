@@ -1,5 +1,7 @@
 import jobService from "../services/job.service.js";
 
+import recommendationService from "../services/recommendation.service.js";
+
 class JobController {
   async getAll(req, res, next) {
     try {
@@ -84,6 +86,17 @@ class JobController {
         success: true,
         data: job,
       });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  // Endpoint: GET /api/v1/jobs/recommendations
+  async recommendations(req, res, next) {
+    try {
+      const userId = req.user?.id;
+      const data = await recommendationService.getTopRecommendations(userId);
+      res.json({ success: true, data });
     } catch (err) {
       next(err);
     }
