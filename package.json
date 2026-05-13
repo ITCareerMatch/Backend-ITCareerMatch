@@ -7,10 +7,7 @@
     "dev": "nodemon src/index.js",
     "start": "node src/index.js",
     "worker": "nodemon src/worker.js",
-    "worker:start": "node src/worker.js",
-    "swagger:generate": "node scripts/generate-swagger.js",
-    "contract:generate": "widdershins swagger.json -o API_CONTRACT.md",
-    "docs:generate": "npm run swagger:generate && npm run contract:generate"
+    "worker:start": "node src/worker.js"
   },
   "keywords": [],
   "author": "",
