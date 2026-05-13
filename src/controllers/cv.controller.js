@@ -11,14 +11,20 @@ class CvController {
   async uploadPreview(req, res, next) {
     try {
       const file = req.file;
+
       if (!file)
         return res
           .status(400)
           .json({ success: false, message: "No file uploaded" });
+
       // Parse PDF to text (in memory)
       const cvText = await parsePdfToText(file.buffer);
+
+      // console.log(cvText);
+
       // Quick scoring (dummy or real logic)
       const preview = await quickScorePreview(cvText);
+
       res.json({ success: true, preview });
     } catch (err) {
       next(err);

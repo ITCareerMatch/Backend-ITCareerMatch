@@ -1,23 +1,69 @@
-// Dummy queue implementation, replace with BullMQ/Redis
-const taskStore = {};
+import { Queue, Worker } from "bullmq";
+import Redis from "redis";
+
+const redisConnection = {
+  host: process.env.REDIS_HOST || "localhost",
+  port: parseInt(process.env.REDIS_PORT || "6379"),
+  password: process.env.REDIS_PASSWORD,
+};
+
+// Queue untuk CV Analysis
+export const cvAnalysisQueue = new Queue("cv-analysis", {
+  connection: redisConnection,
+});
+
+// Store untuk task metadata (status, result)
+const taskStore = new Map();
 
 export async function addTaskToQueue({ taskId, userId, cvId, cvText }) {
-  // Simulate async processing
-  taskStore[taskId] = { status: "processing", result: null };
-  setTimeout(() => {
-    taskStore[taskId] = {
-      status: "completed",
-      result: {
-        recommendations: [], // Fill with dummy data if needed
+  try {
+    await cvAnalysisQueue.add(
+      "analyze-cv",
+      {
+        taskId,
+        userId,
+        cvId,
+        cvText,
       },
-    };
-  }, 2000); // Simulate 2s processing
+      {
+        jobId: taskId,
+        attempts: 3,
+        backoff: {
+          type: "exponential",
+          delay: 2000,
+        },
+      },
+    );
+
+    taskStore.set(taskId, { status: "processing", result: null });
+    return taskId;
+  } catch (error) {
+    console.error("Error adding task to queue:", error);
+    throw error;
+  }
 }
 
 export async function getTaskStatus(taskId) {
-  return taskStore[taskId]?.status || "processing";
+  const stored = taskStore.get(taskId);
+  if (stored) return stored.status;
+
+  // Try to get from queue
+  const job = await cvAnalysisQueue.getJob(taskId);
+  if (!job) return "not-found";
+
+  const state = await job.getState();
+  return state;
 }
 
 export async function getTaskResult(taskId) {
-  return taskStore[taskId]?.result || null;
+  const stored = taskStore.get(taskId);
+  return stored?.result || null;
+}
+
+export function updateTaskStatus(taskId, status, result = null) {
+  taskStore.set(taskId, { status, result });
+}
+
+export function getTaskStore() {
+  return taskStore;
 }
