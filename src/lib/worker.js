@@ -1,22 +1,22 @@
 import { Worker } from "bullmq";
+import IORedis from "ioredis";
 import axios from "axios";
-import { cvAnalysisQueue, updateTaskStatus } from "./queue.js";
+import { cvAnalysisQueue } from "./queue.js";
 import cvRepository from "../repositories/cv.repository.js";
 import analysisRepository from "../repositories/analysis.repository.js";
 import jobRepository from "../repositories/job.repository.js";
 
-const redisConnection = {
-  host: process.env.REDIS_HOST || "localhost",
-  port: parseInt(process.env.REDIS_PORT || "6379"),
-  password: process.env.REDIS_PASSWORD,
-};
+// REDIS_URL includes port already
+const connection = new IORedis(
+  process.env.REDIS_URL || "redis://localhost:6379",
+);
 
 // AI Service URL
 const AI_SERVICE_URL = process.env.AI_SERVICE_URL || "http://localhost:8000";
 
 export async function setupWorker() {
   const worker = new Worker("cv-analysis", processJob, {
-    connection: redisConnection,
+    connection,
     concurrency: 2,
   });
 

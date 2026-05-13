@@ -1,15 +1,14 @@
-import { Queue, Worker } from "bullmq";
-import Redis from "redis";
+import { Queue } from "bullmq";
+import IORedis from "ioredis";
 
-const redisConnection = {
-  host: process.env.REDIS_HOST || "localhost",
-  port: parseInt(process.env.REDIS_PORT || "6379"),
-  password: process.env.REDIS_PASSWORD,
-};
+// REDIS_URL includes port already
+const connection = new IORedis(
+  process.env.REDIS_URL || "redis://localhost:6379",
+);
 
 // Queue untuk CV Analysis
 export const cvAnalysisQueue = new Queue("cv-analysis", {
-  connection: redisConnection,
+  connection,
 });
 
 // Store untuk task metadata (status, result)
