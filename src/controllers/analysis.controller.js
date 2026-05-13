@@ -5,8 +5,24 @@ class AnalysisController {
   async history(req, res, next) {
     try {
       const userId = req.user?.id;
-      const data = await analysisService.getHistory(userId);
-      res.json({ success: true, data });
+      const { page = 1, limit = 10 } = req.query;
+
+      const pageNum = Math.max(1, parseInt(page));
+      const limitNum = Math.min(100, Math.max(1, parseInt(limit)));
+      const offset = (pageNum - 1) * limitNum;
+
+      const data = await analysisService.getHistory(userId, limitNum, offset);
+      const total = await analysisService.getHistoryCount(userId);
+
+      res.json({
+        success: true,
+        data,
+        meta: {
+          page: pageNum,
+          limit: limitNum,
+          total,
+        },
+      });
     } catch (err) {
       next(err);
     }
@@ -17,7 +33,16 @@ class AnalysisController {
     try {
       const userId = req.user?.id;
       const { id } = req.params;
-      const data = await analysisService.getDetail(userId, id);
+
+      const data = await analysisService.getDetail(id);
+
+      if (!data || data.user_id !== userId) {
+        return res.status(404).json({
+          success: false,
+          message: "Analysis not found",
+        });
+      }
+
       res.json({ success: true, data });
     } catch (err) {
       next(err);

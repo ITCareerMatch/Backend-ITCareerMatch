@@ -1,32 +1,50 @@
-// Dummy implementation, replace with real DB queries
+import analysisRepository from "../repositories/analysis.repository.js";
+
 class AnalysisService {
-  async getHistory(userId) {
-    // Return dummy history
-    return [
-      {
-        id: "analysis-1",
-        job_title_snapshot: "Data Scientist",
-        company_snapshot: "PT. AI Cerdas",
-        match_score: 85.2,
-        analyzed_at: new Date().toISOString(),
-      },
-      // ...
-    ];
+  async createAnalysis(
+    userId,
+    cvId,
+    jobId,
+    matchScore,
+    jobTitleSnapshot,
+    companySnapshot,
+  ) {
+    return analysisRepository.createAnalysisHistory({
+      userId,
+      cvId,
+      jobId,
+      matchScore,
+      jobTitleSnapshot,
+      companySnapshot,
+    });
   }
 
-  async getDetail(userId, id) {
-    // Return dummy detail
+  async createAnalysisDetails(analysisId, details) {
+    return analysisRepository.createAnalysisDetails(analysisId, details);
+  }
+
+  async getHistory(userId, limit = 100, offset = 0) {
+    return analysisRepository.getAnalysisHistory(userId, limit, offset);
+  }
+
+  async getDetail(analysisId) {
+    const analysis = await analysisRepository.getAnalysisById(analysisId);
+    if (!analysis) return null;
+
+    const details = await analysisRepository.getAnalysisDetails(analysisId);
+
     return {
-      id,
-      job_title_snapshot: "Data Scientist",
-      company_snapshot: "PT. AI Cerdas",
-      match_score: 85.2,
-      analyzed_at: new Date().toISOString(),
-      skill_match: ["Python", "SQL"],
-      skill_gap: ["Spark", "AWS"],
-      ai_insight:
-        "Skill Python dan SQL kamu sangat sesuai. Pertimbangkan untuk mempelajari Spark agar lebih kompetitif.",
+      ...analysis,
+      skill_details: details,
     };
+  }
+
+  async checkAnalysisExists(cvId, jobId) {
+    return analysisRepository.checkAnalysisExists(cvId, jobId);
+  }
+
+  async getHistoryCount(userId) {
+    return analysisRepository.getAnalysisHistoryCount(userId);
   }
 }
 
