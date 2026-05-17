@@ -20,7 +20,15 @@ class CvController {
       // Parse PDF to text (in memory)
       const cvText = await parsePdfToText(file.buffer);
 
-      // console.log(cvText);
+      console.log(cvText);
+
+      if (!cvText || cvText.trim().length < 50) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "CV cannot be read. Please upload a text-based PDF instead of a scanned/image PDF.",
+        });
+      }
 
       // Quick scoring (dummy or real logic)
       const preview = await quickScorePreview(cvText);
@@ -35,15 +43,29 @@ class CvController {
   async analyze(req, res, next) {
     try {
       const file = req.file;
+
       if (!file)
         return res
           .status(400)
           .json({ success: false, message: "No file uploaded" });
+
       const userId = getUserIdFromReq(req);
+
       // Parse PDF to text
       const cvText = await parsePdfToText(file.buffer);
+
+      // VALIDASI SCAN PDF
+      if (!cvText || cvText.trim().length < 50) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "CV cannot be read. Please upload a text-based PDF instead of a scanned/image PDF.",
+        });
+      }
+
       // Save to DB (cv_archives)
       const cvArchive = await saveCvArchive({ userId, file, cvText });
+
       // Trigger async AI analysis (queue)
       const taskId = await createAnalysisTask({
         userId,

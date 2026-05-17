@@ -1,22 +1,9 @@
 import express from "express";
-import multer from "multer";
 import cvController from "../controllers/cv.controller.js";
 import { authenticate } from "../middlewares/auth.middleware.js";
+import { uploadCv } from "../middlewares/upload.middleware.js";
 
 const router = express.Router();
-
-// Setup multer for file uploads (in memory)
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
-  fileFilter: (req, file, cb) => {
-    if (file.mimetype === "application/pdf") {
-      cb(null, true);
-    } else {
-      cb(new Error("Only PDF files are allowed"));
-    }
-  },
-});
 
 /**
  * @swagger
@@ -37,7 +24,7 @@ const upload = multer({
  *               file:
  *                 type: string
  *                 format: binary
- *                 description: PDF file to upload (max 500 KB)
+ *                 description: PDF file to upload (max 1 MB, text-based PDF only)
  *     responses:
  *       200:
  *         description: CV preview processed successfully
@@ -61,7 +48,6 @@ const upload = multer({
  *       400:
  *         $ref: '#/components/responses/BadRequestError'
  */
-router.post("/upload", upload.single("file"), cvController.uploadPreview);
 
 /**
  * @swagger
@@ -84,7 +70,7 @@ router.post("/upload", upload.single("file"), cvController.uploadPreview);
  *               file:
  *                 type: string
  *                 format: binary
- *                 description: PDF file to upload (max 500 KB)
+ *                 description: PDF file to upload (max 1 MB, text-based PDF only)
  *     responses:
  *       200:
  *         description: CV uploaded successfully, analysis task created
@@ -105,12 +91,6 @@ router.post("/upload", upload.single("file"), cvController.uploadPreview);
  *       401:
  *         $ref: '#/components/responses/UnauthorizedError'
  */
-router.post(
-  "/analyze",
-  authenticate,
-  upload.single("file"),
-  cvController.analyze,
-);
 
 /**
  * @swagger
@@ -165,6 +145,8 @@ router.post(
  *       404:
  *         $ref: '#/components/responses/NotFoundError'
  */
+router.post("/upload", uploadCv, cvController.uploadPreview);
+router.post("/analyze", authenticate, uploadCv, cvController.analyze);
 router.get("/status/:task_id", authenticate, cvController.status);
 
 export default router;
