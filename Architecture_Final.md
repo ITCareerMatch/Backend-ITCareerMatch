@@ -1,5 +1,5 @@
 # 📄 Dokumentasi Final Arsitektur & Database — ITCareerMatch
-> **CC26-PSU088** | Terakhir diperbarui berdasarkan hasil diskusi tim (Discord)
+> **CC26-PSU088** | Terakhir diperbarui: revisi v2 (post-diskusi flow guest, parsing PDF, input manual)
 
 ---
 
@@ -32,6 +32,7 @@ ITCareerMatch menggunakan pendekatan **Decoupled / Separated Services Architectu
 | Backend Utama | Express.js |
 | AI Service | FastAPI + Python |
 | Database & Auth | Supabase (PostgreSQL + Supabase Auth + Storage) |
+| Temporary Session | Redis (TTL 30 menit) |
 | Queue / Worker | BullMQ + Redis *(atau alternatif: Celery, RabbitMQ)* |
 
 **Tujuan arsitektur ini:**
@@ -44,6 +45,8 @@ ITCareerMatch menggunakan pendekatan **Decoupled / Separated Services Architectu
 Frontend (React.js)
      ↓
 Backend Express
+     ↓
+Redis (Temporary Session — TTL 30 menit)
      ↓
 Queue / Worker (BullMQ + Redis)
      ↓
@@ -65,10 +68,16 @@ Backend berperan sebagai **penghubung** utama — antara Frontend, Database, dan
 **Tugas:**
 - Menyediakan REST API untuk Frontend
 - Verifikasi JWT dari Supabase Auth
-- Menerima upload CV dari user
-- Parsing PDF → plain text (`cv_text`)
+- Menerima upload CV (file PDF) atau input manual CV dari user
+- **Parsing PDF → plain text (`cv_text`):**
+  - Gunakan library Node.js (mis. `pdfjs-dist`) sebagai parsing utama
+  - Validasi hasil parsing — cek apakah teks cukup panjang dan meaningful
+  - Jika tidak valid → jalankan OCR fallback (mis. Tesseract)
+  - Jika hasil OCR juga tidak valid → reject, minta user upload ulang
+- **Convert input manual CV → plain text** (`cv_text`) dalam format terstruktur sebelum dikirim ke AI
 - Filtering jobs sebelum dikirim ke AI
 - Mengatur Queue / Background Task
+- Mengelola temporary session di Redis (guest flow)
 - Memanggil AI API dan meneruskan hasilnya
 - Menyimpan hasil analisis ke database
 - Formatting response ke Frontend
@@ -95,7 +104,10 @@ AI berjalan sebagai **service terpisah** menggunakan FastAPI + Python.
 - Skill gap analysis *(metode masih dikaji: NER atau Gen AI)*
 - AI insight & rekomendasi pekerjaan
 
-**Catatan:** AI menerima `cv_text` (teks bersih hasil parsing Backend), **bukan PDF mentah**.
+**Catatan:**
+- AI menerima `cv_text` (teks bersih hasil parsing/convert Backend), **bukan PDF mentah**
+- `cv_text` bisa berasal dari dua sumber: parsing PDF atau convert input manual — **format yang diterima AI sama**
+- Pipeline AI harus cukup robust untuk handle teks yang kurang sempurna (kemungkinan hasil OCR)
 
 ---
 
@@ -107,11 +119,11 @@ DS bertugas menyiapkan data lowongan kerja dan skill agar siap diproses AI, sert
 - Scraping & cleaning data lowongan
 - **Menentukan tahapan preprocessing** (cleaning → normalisasi → siap diproses model)
 - Standarisasi nama skill (contoh: `React`, `react js`, `ReactJS` → dipetakan ke 1 skill ID → dibantu backend di supabase langsung)
-- Mengisi tabel `jobs` ( untuk tabel `skills`, `job_skills` dibantu backend)
+- Mengisi tabel `jobs` (untuk tabel `skills`, `job_skills` dibantu backend)
 - Quality control dataset
 
 > DS menentukan **apa** yang dilakukan preprocessing. AI Engineer membangun **pipeline-nya**.
- 
+
 ---
 
 ## 3. Struktur Database
@@ -131,7 +143,7 @@ Sedangkan untuk **pendidikan** (SMA/D3/S1/S2), pilihannya terbatas sehingga AI b
 ### Schema Database (DBML)
 
 ```dbml
-// ITCareerMatch Database Schema — Final Optimized
+// ITCareerMatch Database Schema — Final Optimized v2
 // AI Career Matching Platform — CC26-PSU088
 
 Project ITCareerMatch {
@@ -209,9 +221,10 @@ Table job_skills {
 Table cv_archives {
   id        uuid      [primary key, default: `gen_random_uuid()`]
   user_id   uuid      [not null]
-  file_url  text
-  file_name varchar
-  raw_text  text      [note: 'Hasil parsing PDF → text, agar tidak perlu re-parsing']
+  file_url  text      [note: 'Null jika sumber dari input manual']
+  file_name varchar   [note: 'Null jika sumber dari input manual']
+  cv_source varchar   [note: 'upload | manual']
+  raw_text  text      [note: 'Hasil parsing PDF atau convert form input → text']
   status    varchar   [note: 'processing | active | archived']
   uploaded_at timestamp [default: `now()`]
 }
@@ -249,7 +262,7 @@ Table analysis_details {
 // ─────────────────────────────────────────
 // RELATIONSHIPS
 // ─────────────────────────────────────────
-Ref: users.id           - auth_users.id       [delete: cascade]
+Ref: users.id             - auth_users.id         [delete: cascade]
 Ref: cv_archives.user_id  > users.id
 Ref: analysis_history.user_id > users.id
 Ref: cv_skills.cv_id      > cv_archives.id
@@ -266,24 +279,89 @@ Ref: analysis_details.analysis_id > analysis_history.id
 
 ## 4. Flow Utama Sistem
 
-### FLOW — User Upload CV
+### FLOW A — Guest (Preview Mode)
+
+User bisa memilih: **upload file CV** atau **isi input manual CV**.
 
 ```
-1.  User upload file PDF CV via Frontend
-2.  Backend menerima file → upload ke Supabase Storage
-3.  Backend simpan metadata ke tabel cv_archives
-4.  Backend parsing PDF → cv_text (plain text)
-5.  Backend simpan cv_text ke kolom raw_text di cv_archives
-6.  Backend memasukkan task ke Queue (BullMQ/Redis)
-7.  Backend return task_id ke Frontend (user tidak perlu nunggu)
-8.  Worker/background process memanggil AI API
-9.  AI melakukan preprocessing cv_text (hapus noise)
-10. AI ekstraksi skill → mapping ke tabel skills
-11. AI hitung similarity score dengan filtered_jobs (SBERT)
-12. AI kembalikan hasil analisis ke Backend
-13. Backend simpan hasil ke cv_skills, analysis_history, analysis_details
-14. Frontend polling endpoint /status/:task_id sampai status = completed
-15. Frontend menampilkan rekomendasi job + detail analisis
+1.  Guest upload PDF atau isi form input manual via Frontend
+2a. [Jika upload PDF]
+    Backend parsing PDF → cv_text
+    → Validasi teks: cukup panjang & meaningful?
+    → Jika tidak valid → OCR fallback
+    → Jika OCR juga tidak valid → reject, minta upload ulang
+2b. [Jika input manual]
+    Backend convert form fields → cv_text (plain text terstruktur)
+3.  Backend kirim cv_text ke AI (tanpa job matching)
+4.  AI:
+    - Preprocessing cv_text
+    - Ekstraksi skill
+    - Skill gap analysis
+    - AI insight
+    - Hitung preview score
+5.  Backend simpan sementara ke Redis (TTL 30 menit):
+    - raw_text
+    - extracted_skills
+    - skill_gap
+    - ai_insight
+    - preview_score
+    - temp_token
+6.  Backend return ke Frontend:
+    - preview_score
+    - jumlah skill cocok & gap
+    - preview singkat skill & insight (sebagian di-blur)
+    - temp_token
+7.  Frontend tampilkan preview + CTA:
+    "Daftar gratis untuk melihat detail lengkap & rekomendasi pekerjaan"
+```
+
+---
+
+### FLOW B — Setelah Register / Login
+
+```
+1.  User register atau login
+2.  Frontend kirim temp_token ke Backend
+3.  Backend ambil session dari Redis menggunakan temp_token
+4.  Jika session masih valid (belum expired 30 menit):
+    → Attach ke user_id
+    → Simpan raw_text ke cv_archives
+    → Masukkan task ke Queue (BullMQ/Redis)
+5.  Jika session sudah expired:
+    → Minta user upload/input ulang CV
+6.  Worker memanggil AI API dengan:
+    - cv_text (dari Redis session)
+    - filtered_jobs (hasil hard filter Backend)
+7.  AI hitung SBERT similarity → Top-20 job matching
+8.  Backend simpan hasil permanen:
+    - cv_skills
+    - analysis_history
+    - analysis_details
+9.  Frontend polling /status/:task_id sampai completed
+10. Frontend tampilkan Top-20 rekomendasi + detail analisis per job
+```
+
+---
+
+### FLOW C — User Login (Analisis Baru)
+
+User yang sudah login bisa kapan saja upload/input CV baru.
+
+```
+1.  User upload PDF atau isi form input manual via Frontend
+2a. [Jika upload PDF]
+    Backend parsing PDF → cv_text (pipeline sama dengan Flow A)
+2b. [Jika input manual]
+    Backend convert form fields → cv_text
+3.  Backend simpan file ke Supabase Storage (jika upload PDF)
+4.  Backend simpan metadata ke cv_archives
+5.  Backend masukkan task ke Queue
+6.  Backend return task_id ke Frontend
+7.  Worker memanggil AI API (full analysis + job matching)
+8.  AI: Preprocessing → Ekstraksi Skill → SBERT Scoring → Skill Gap
+9.  Backend simpan hasil ke cv_skills, analysis_history, analysis_details
+10. Frontend polling /status/:task_id sampai completed
+11. Frontend tampilkan Top-20 rekomendasi + detail analisis
 ```
 
 ---
@@ -297,10 +375,17 @@ Ref: analysis_details.analysis_id > analysis_history.id
 - Jika dipaksa synchronous → rawan timeout, UX buruk
 - Dengan queue, user bisa langsung lanjut tanpa stuck di loading
 
-**Flow Queue:**
+**Flow Queue (authenticated user):**
 ```
-Upload CV → masuk Queue → AI Processing → Completed → Frontend polling hasil
+Upload/Input CV → masuk Queue → AI Processing → Completed → Frontend polling hasil
 ```
+
+**Flow Guest (tidak pakai queue):**
+```
+Upload/Input CV → AI Processing (tanpa job matching) → Simpan ke Redis → Return preview
+```
+
+> Guest flow tidak menggunakan queue karena prosesnya lebih ringan (tanpa job matching) dan hasilnya perlu langsung dikembalikan ke Frontend.
 
 **Status yang disimpan di `cv_archives`:**
 
@@ -310,13 +395,25 @@ Upload CV → masuk Queue → AI Processing → Completed → Frontend polling h
 | `active` | Analisis selesai, hasil tersedia |
 | `archived` | CV lama yang sudah tidak aktif |
 
+**Redis Temporary Session (guest):**
+
+| Field | Keterangan |
+|---|---|
+| `temp_token` | Token unik untuk claim session |
+| `raw_text` | Teks hasil parsing / convert input manual |
+| `extracted_skills` | Skill hasil ekstraksi AI |
+| `skill_gap` | Skill gap hasil analisis AI |
+| `ai_insight` | Insight dari AI |
+| `preview_score` | Skor kecocokan preview |
+| TTL | **30 menit** sejak dibuat |
+
 **Tools yang dipertimbangkan:** BullMQ + Redis, Celery, RabbitMQ *(perlu eksperimen lebih lanjut)*
 
 ---
 
 ## 6. Filtering oleh Backend
 
-Sebelum mengirimkan data ke AI, Backend melakukan **hard filtering** jobs terlebih dahulu.
+Sebelum mengirimkan data ke AI (khusus authenticated user — full analysis), Backend melakukan **hard filtering** jobs terlebih dahulu.
 
 **Kriteria filter:**
 | Field | Keterangan |
@@ -329,25 +426,67 @@ Sebelum mengirimkan data ke AI, Backend melakukan **hard filtering** jobs terleb
 
 **Tujuan:** Mengurangi jumlah job yang dikirim ke AI sehingga SBERT hanya memproses job yang memang sudah memenuhi kualifikasi dasar → lebih cepat, lebih efisien.
 
+> Guest flow **tidak** melakukan job filtering karena tidak ada job matching di preview.
+
 ---
 
 ## 7. Input & Output AI
 
 ### Input yang Dikirim Backend ke AI
 
+**Guest (preview only):**
+
 | Field | Keterangan |
 |---|---|
-| `cv_text` | Hasil parsing PDF ke teks (bukan PDF mentah) |
+| `cv_text` | Hasil parsing PDF atau convert input manual → plain text |
+
+**Authenticated user (full analysis):**
+
+| Field | Keterangan |
+|---|---|
+| `cv_text` | Hasil parsing PDF atau convert input manual → plain text |
 | `user_id` | Untuk menyimpan hasil analisis |
 | `filtered_jobs` | Daftar jobs yang sudah lolos hard filter |
-| `cv_id` *(optional)* | Untuk referensi penyimpanan |
+| `cv_id` | Untuk referensi penyimpanan |
 
-> ⚠️ AI **tidak** menerima file PDF secara langsung. Backend wajib melakukan parsing PDF → text sebelum mengirim ke AI.
+> ⚠️ AI **tidak** menerima file PDF secara langsung. Backend wajib melakukan parsing/convert terlebih dahulu.
+> ⚠️ `cv_text` yang diterima AI **selalu plain text** — baik dari upload PDF maupun input manual. Format yang diterima AI sama untuk kedua sumber.
+
+---
+
+### Format `cv_text` dari Input Manual
+
+Ketika user mengisi form manual, Backend mengkonversi field-field tersebut ke format teks terstruktur sebelum dikirim ke AI. Contoh:
+
+```
+Nama: Budi Santoso
+Pendidikan: S1 Informatika, Universitas XYZ, 2020-2024
+Pengalaman: 2 tahun sebagai Data Analyst di PT Teknologi Maju
+Skill: Python, SQL, Tableau, Excel
+Deskripsi tambahan: Berpengalaman dalam analisis data dan visualisasi dashboard
+```
+
+> Format ini memastikan pipeline AI dapat memproses input manual dengan cara yang sama seperti teks dari PDF.
 
 ---
 
 ### Output yang Dikembalikan AI ke Backend
 
+**Guest (preview):**
+```json
+{
+  "preview_score": 70,
+  "extracted_skills": ["Python", "SQL", "Tableau"],
+  "skill_gap": ["Spark", "AWS", "Docker"],
+  "ai_insight": [
+    "Skill Python dan SQL kamu sudah solid.",
+    "Pertimbangkan untuk mempelajari Spark.",
+    "AWS akan meningkatkan daya saing kamu."
+  ]
+}
+```
+
+**Authenticated user (full analysis):**
 ```json
 {
   "cv_id": "uuid",
@@ -384,12 +523,15 @@ Sebelum mengirimkan data ke AI, Backend melakukan **hard filtering** jobs terleb
 
 | Tabel | Data yang Disimpan | Alasan |
 |---|---|---|
-| `cv_archives.raw_text` | Teks hasil parsing PDF | Agar tidak parsing ulang di analisis berikutnya |
+| `cv_archives.raw_text` | Teks hasil parsing PDF atau convert input manual | Agar tidak parsing/convert ulang di analisis berikutnya |
+| `cv_archives.cv_source` | Sumber CV: `upload` atau `manual` | Tracking asal data CV |
 | `cv_skills` | Skill hasil ekstraksi AI + confidence score | Cache skill user |
 | `analysis_history` | match_score per job_id, snapshot title & company | Riwayat analisis yang bisa dibuka ulang |
 | `analysis_details` | skill match, skill gap, ai_insight per skill | Detail lengkap yang bisa ditampilkan di halaman job detail |
 
 **Benefit:** Kalau user membuka kembali hasil analisis job tertentu di hari lain, data langsung tersedia tanpa perlu proses ulang AI.
+
+> **Guest data tidak disimpan permanen** — hanya di Redis dengan TTL 30 menit. Jika session expired, user perlu upload/input ulang.
 
 ---
 
@@ -404,7 +546,7 @@ Sebelum mengirimkan data ke AI, Backend melakukan **hard filtering** jobs terleb
 
 | Method | Endpoint | Fungsi |
 |---|---|---|
-| `POST` | `/api/v1/cv/upload` | Upload CV guest, parsing di memory, return skor singkat sebagai preview — **tidak ada yang disimpan ke DB, CV langsung dibuang setelah response dikirim** |
+| `POST` | `/api/v1/cv/preview` | Upload PDF atau submit input manual CV (guest). BE parsing/convert → kirim ke AI (tanpa job matching) → simpan sementara ke Redis (TTL 30 menit) → return `preview_score`, `preview_summary`, `temp_token` |
 | `GET` | `/api/v1/jobs` | List semua lowongan aktif (pagination) |
 | `GET` | `/api/v1/jobs/:id` | Detail info lowongan: deskripsi, requirement, lokasi, dll. (data statis dari tabel `jobs`) |
 
@@ -415,7 +557,8 @@ Sebelum mengirimkan data ke AI, Backend melakukan **hard filtering** jobs terleb
 | Method | Endpoint | Fungsi |
 |---|---|---|
 | `GET` | `/api/v1/user/profile` | Ambil data profil user yang sedang login |
-| `POST` | `/api/v1/cv/analyze` | Upload CV user (login), simpan ke `cv_archives`, trigger proses AI secara async → return `task_id` untuk polling |
+| `POST` | `/api/v1/cv/analyze` | Upload PDF atau submit input manual CV (authenticated). BE parsing/convert → simpan ke `cv_archives` → trigger full AI analysis via queue → return `task_id` |
+| `POST` | `/api/v1/cv/claim` | Claim temporary session setelah login. FE kirim `temp_token` → BE ambil dari Redis → lanjut full analysis → return `task_id` |
 | `GET` | `/api/v1/cv/status/:task_id` | Cek status antrian AI: `processing` / `completed` / `failed` |
 | `GET` | `/api/v1/jobs/recommendations` | List Top-20 lowongan yang paling cocok dengan CV user, diurutkan berdasarkan `match_score` — **personal per user** |
 | `GET` | `/api/v1/analysis/history` | List seluruh riwayat analisis yang pernah dilakukan user |
@@ -427,6 +570,7 @@ Sebelum mengirimkan data ke AI, Backend melakukan **hard filtering** jobs terleb
 
 | Method | Endpoint | Fungsi |
 |---|---|---|
+| `POST` | `/internal/ai/preview` | Preview analysis (guest): preprocessing + ekstraksi skill + skill gap + insight. Tanpa job matching |
 | `POST` | `/internal/ai/extract` | Ekstraksi skill dari `cv_text` → mapping ke tabel `skills` |
 | `POST` | `/internal/ai/match` | Hitung SBERT similarity antara `cv_text` dan `filtered_jobs` → return scoring + skill gap |
 
@@ -435,68 +579,112 @@ Sebelum mengirimkan data ke AI, Backend melakukan **hard filtering** jobs terleb
 ---
 
 ## 10. Catatan Penting per Endpoint
- 
-### POST /api/v1/public/cv/upload vs POST /api/v1/cv/analyze
- 
-Dua endpoint ini berbeda tujuan dan perilakunya secara fundamental:
- 
-| | Public Upload | Protected Analyze |
-|---|---|---|
-| **Siapa** | Guest (belum login) | User yang sudah login |
-| **CV disimpan?** | ❌ Tidak — diproses di memory, langsung dibuang | ✅ Ya — disimpan ke `cv_archives` (termasuk `raw_text`) |
-| **Hasil disimpan?** | ❌ Tidak | ✅ Ya — ke `analysis_history` & `analysis_details` |
-| **Output** | Skor singkat / preview saja | Analisis lengkap + riwayat tersimpan |
-| **Bisa diakses ulang?** | ❌ Tidak | ✅ Ya, lewat `/analysis/history` |
-| **Perlu upload ulang setelah login?** | ✅ Ya, kalau mau analisis lengkap | — |
- 
-> **Kenapa begini?** Mengacu dari diskusi tim (Ulil): tujuan menyimpan `extracted_cv` / `raw_text` adalah *"agar saat user mencari rekomendasi job lagi di hari lain, AI tidak perlu mengulang proses dari nol."* Konteks ini sudah jelas untuk user yang punya akun — bukan guest. Skenario "klaim CV guest setelah login" tidak pernah dibahas dan menambah kompleksitas yang tidak perlu untuk saat ini.
- 
+
+### POST /api/v1/cv/preview vs POST /api/v1/cv/analyze vs POST /api/v1/cv/claim
+
+Tiga endpoint ini berbeda tujuan dan perilakunya secara fundamental:
+
+| | `/cv/preview` | `/cv/analyze` | `/cv/claim` |
+|---|---|---|---|
+| **Siapa** | Guest | User login | User login (setelah lihat preview) |
+| **Input** | Upload PDF atau form manual | Upload PDF atau form manual | `temp_token` dari preview |
+| **CV disimpan?** | ❌ Tidak — hanya di Redis TTL 30 menit | ✅ Ya — ke `cv_archives` | ✅ Ya — ambil dari Redis, simpan ke `cv_archives` |
+| **Job matching?** | ❌ Tidak | ✅ Ya (Top-20) | ✅ Ya (Top-20) |
+| **Hasil disimpan?** | ❌ Tidak (Redis saja) | ✅ Ya — ke `analysis_history` & `analysis_details` | ✅ Ya — ke `analysis_history` & `analysis_details` |
+| **Output** | Preview score + summary + `temp_token` | `task_id` untuk polling | `task_id` untuk polling |
+| **Bisa diakses ulang?** | ❌ Tidak (expired 30 menit) | ✅ Ya, lewat `/analysis/history` | ✅ Ya, lewat `/analysis/history` |
+
+> **Kenapa ada `/cv/claim`?** Agar guest yang sudah melihat preview tidak perlu upload/input ulang setelah login. BE cukup ambil data dari Redis menggunakan `temp_token` dan melanjutkan ke full analysis. Jika `temp_token` sudah expired (>30 menit), user diminta upload/input ulang.
+
 ---
- 
+
+### Parsing PDF — Pipeline di Backend
+
+```
+Upload PDF
+   ↓
+Parsing dengan pdf-parse (atau library utama)
+   ↓
+Validasi teks hasil parsing
+(cukup panjang? meaningful?)
+   ↓
+[Valid] → cv_text siap dikirim ke AI
+   ↓
+[Tidak valid] → OCR fallback (Tesseract atau sejenisnya)
+   ↓
+Validasi teks hasil OCR
+   ↓
+[Valid] → cv_text siap dikirim ke AI
+   ↓
+[Tidak valid] → Reject, return error ke Frontend
+("CV tidak dapat dibaca. Coba upload file PDF dengan format yang lebih sederhana.")
+```
+
+> **Catatan:** OCR tidak menjamin teks yang dihasilkan 100% runtut, terutama untuk CV multi-kolom. Pipeline AI harus cukup robust untuk handle teks yang kurang sempurna.
+
+---
+
+### Input Manual CV — Konversi di Backend
+
+Ketika user memilih isi form manual, Backend mengkonversi data form ke `cv_text` sebelum dikirim ke AI:
+
+```
+Form Input (JSON dari Frontend)
+   ↓
+Backend: Convert → plain text terstruktur
+   ↓
+cv_text siap dikirim ke AI (format sama dengan hasil parsing PDF)
+```
+
+> Ini memastikan pipeline AI tidak perlu membedakan sumber input. AI selalu menerima `cv_text` dalam format plain text.
+
+---
+
 ### GET /api/v1/jobs/:id vs GET /api/v1/analysis/:id
- 
-Dua endpoint ini sering dikira sama, tapi isinya sangat berbeda:
- 
+
 | | `/jobs/:id` | `/analysis/:id` |
 |---|---|---|
 | **Isi** | Info statis lowongan (dari tabel `jobs`) | Hasil AI untuk user ini (dari `analysis_history` + `analysis_details`) |
 | **Personal?** | ❌ Sama untuk semua user | ✅ Berbeda per user |
 | **Perlu login?** | ❌ Public | ✅ Protected (JWT) |
 | **Contoh isi** | Judul, perusahaan, lokasi, requirement, `external_url` | Match score, skill match, skill gap, AI insight |
- 
-Keduanya bisa ditampilkan **bersama** di halaman detail lowongan — FE cukup hit dua endpoint dan gabungkan hasilnya — tapi tetap dari dua endpoint yang berbeda.
- 
+
+Keduanya bisa ditampilkan **bersama** di halaman detail lowongan — FE cukup hit dua endpoint dan gabungkan hasilnya.
+
 ---
- 
+
 ### GET /api/v1/jobs/recommendations
- 
+
 Ini bukan sekadar list semua job — ini adalah **hasil personalisasi AI**:
-- Hanya tersedia setelah user pernah melakukan analisis CV (`POST /cv/analyze`)
+- Hanya tersedia setelah user pernah melakukan analisis CV (`POST /cv/analyze` atau `POST /cv/claim`)
 - Diurutkan berdasarkan `match_score` dari tabel `analysis_history`
 - Menampilkan maksimal Top-20 job terbaik untuk user tersebut
 - Berbeda antar user karena berdasarkan CV masing-masing
+
 ---
- 
+
 ### Fitur yang Di-cut dari Scope (Deadline 3 Minggu)
- 
+
 Fokus core fitur saat ini:
 - ✅ Job Recommendation
 - ✅ Similarity Score
 - ✅ Skill Gap Analysis
-  
+- ✅ Guest Preview (tanpa job matching)
+
 | Fitur | Status | Alasan |
 |---|---|---|
 | `POST /api/v1/cv/optimize` | ⏳ Fitur lanjutan | Bukan core, dikerjakan setelah deadline utama |
-| `POST /api/v1/chatbot` | ❌ Di-cut dari scope | Butuh lebih banyak waktu (Gen AI), tidak masuk deadline 3 minggu — keputusan diskusi tim |
- 
+| `POST /api/v1/chatbot` | ❌ Di-cut dari scope | Butuh lebih banyak waktu (Gen AI), tidak masuk deadline 3 minggu |
+
 ---
 
 ## 11. Keterkaitan Endpoint dengan Tabel DB
- 
-| Endpoint | Tabel yang Terlibat |
+
+| Endpoint | Tabel / Storage yang Terlibat |
 |---|---|
-| `POST /api/v1/cv/upload` | — *(tidak ada, diproses di memory)* |
+| `POST /api/v1/cv/preview` | Redis (temporary session, TTL 30 menit) |
 | `POST /api/v1/cv/analyze` | `cv_archives`, `cv_skills`, `analysis_history`, `analysis_details` |
+| `POST /api/v1/cv/claim` | Redis (read + delete), `cv_archives`, `cv_skills`, `analysis_history`, `analysis_details` |
 | `GET /api/v1/cv/status/:task_id` | `cv_archives` (kolom `status`) |
 | `GET /api/v1/jobs` | `jobs`, `job_skills`, `skills` |
 | `GET /api/v1/jobs/:id` | `jobs`, `job_skills`, `skills` |
@@ -521,6 +709,8 @@ Fokus core fitur saat ini:
 Frontend → Request + JWT Header → Backend Middleware → Verify JWT → Lanjut ke Handler
 ```
 
+**Guest flow tidak memerlukan JWT.** Identifikasi guest dilakukan via `temp_token` yang dikembalikan dari `/cv/preview`.
+
 Protected route menggunakan middleware JWT verification di Express.
 
 ---
@@ -531,8 +721,9 @@ Protected route menggunakan middleware JWT verification di Express.
 1. Slicing UI dari desain
 2. Integrasi dengan mock API / Swagger docs
 3. Implementasi auth Supabase di sisi client
-4. State management
+4. State management — termasuk penyimpanan `temp_token` sementara di memory/localStorage
 5. Polling status antrian AI
+6. Handle flow: preview → register/login → claim → full analysis
 
 > FE **tidak perlu menunggu BE selesai** — bisa mulai dengan mock JSON dan endpoint contract dari Swagger.
 
@@ -541,11 +732,13 @@ Protected route menggunakan middleware JWT verification di Express.
 ### 🔷 Backend (BE)
 Prioritas awal:
 1. Auth middleware (JWT verification)
-2. PDF Parser (PDF → `cv_text`)
-3. Endpoint structure & Swagger docs
-4. Queue system (BullMQ + Redis)
-5. Integrasi Supabase Storage & DB
-6. Integrasi AI API
+2. PDF Parser pipeline (parse → validasi → OCR fallback)
+3. Input manual CV converter (form JSON → plain text)
+4. Endpoint structure & Swagger docs
+5. Redis setup (temporary session, TTL 30 menit)
+6. Queue system (BullMQ + Redis)
+7. Integrasi Supabase Storage & DB
+8. Integrasi AI API
 
 ---
 
@@ -555,9 +748,10 @@ Prioritas awal:
 2. Ekstraksi skill *(NER atau Gen AI — masih dikaji)*
 3. Implementasi SBERT untuk similarity scoring
 4. Skill gap analysis
-5. Bangun FastAPI service
-6. Definisikan schema response (JSON output)
-   
+5. Bangun FastAPI service — dua mode: **preview** (tanpa job matching) dan **full analysis**
+6. Definisikan schema response (JSON output) — untuk kedua mode
+7. Pastikan pipeline robust untuk handle teks dari OCR (tidak selalu sempurna)
+
 ---
 
 ### 🟢 Data Scientist (DS)
@@ -577,37 +771,59 @@ Prioritas awal:
 | Topik | Keputusan |
 |---|---|
 | Integrasi AI | FastAPI terpisah, bukan tensorflow.js di client |
-| Parsing PDF | Tugas Backend (bukan AI atau DS) |
+| Parsing PDF | Tugas Backend — library Node.js utama + OCR fallback jika parsing gagal validasi |
+| Input CV | Dua opsi: upload PDF atau isi form manual — keduanya dikonversi ke `cv_text` oleh BE |
+| OCR fallback | Diimplementasi di BE. Tidak menjamin hasil 100% runtut; pipeline AI harus robust |
+| File scan reject | Jika hasil OCR juga tidak lolos validasi → reject, minta user upload ulang |
 | Pipeline preprocessing | Ditentukan DS, diimplementasikan AI Engineer |
-| Input ke AI | `cv_text` (plain text hasil parsing Backend), bukan PDF mentah |
-| Proses analisis | **Asynchronous / Queue** (BullMQ + Redis) |
+| Input ke AI | `cv_text` (plain text) — baik dari parsing PDF maupun convert input manual |
+| Guest flow | Preview tanpa job matching → hasil disimpan sementara di **Redis TTL 30 menit** |
+| Claim session | `/cv/claim` dengan `temp_token` — lanjut full analysis tanpa upload ulang (jika belum expired) |
+| Session expired | User diminta upload/input ulang CV |
+| Proses analisis (authenticated) | **Asynchronous / Queue** (BullMQ + Redis) |
+| Proses analisis (guest preview) | Synchronous, langsung return — tidak pakai queue |
 | Display rekomendasi | **Top-20 jobs** (bukan threshold >70%) |
 | Master skill | Dipisah ke tabel `skills` tersendiri |
 | Pendidikan & pengalaman | Di-compare secara teks, tanpa tabel master |
-| Data tersimpan | `raw_text`, `cv_skills`, `analysis_history`, `analysis_details` |
+| Data tersimpan permanen | `raw_text`, `cv_source`, `cv_skills`, `analysis_history`, `analysis_details` |
 | Auth | Supabase Auth + JWT verification di BE |
 | Swagger | Digunakan sebagai kontrak FE ↔ BE |
-| Scope fitur (deadline 3 minggu) | **Core only**: Job Recommendation, Similarity Score, Skill Gap Analysis |
+| Scope fitur (deadline 3 minggu) | **Core only**: Job Recommendation, Similarity Score, Skill Gap Analysis, Guest Preview |
 | Chatbot | ❌ Di-cut — butuh waktu lebih, tidak masuk deadline |
 
 ### Flow Akhir Sistem
 
 ```
-User Upload CV
+[GUEST]
+User Upload PDF / Isi Form Manual
      ↓
-Backend: Parsing PDF → cv_text
+Backend: Parsing PDF → validasi → OCR fallback jika perlu
+         ATAU convert form manual → cv_text
      ↓
+AI: Preprocessing → Ekstraksi Skill → Skill Gap → Insight → Preview Score
+     ↓
+Backend: Simpan sementara ke Redis (TTL 30 menit) + return temp_token
+     ↓
+Frontend: Tampilkan preview (score, skill cocok/gap, insight sebagian blur)
+     ↓
+User register / login
+     ↓
+Frontend kirim temp_token → Backend claim session dari Redis
+     ↓
+[LANJUT KE FULL ANALYSIS ↓]
+
+[AUTHENTICATED — full analysis]
 Backend: Hard Filtering Jobs (gender, umur, lokasi, pendidikan)
      ↓
 Masuk Queue (BullMQ + Redis)
      ↓
 Worker: Panggil AI API dengan cv_text + filtered_jobs
      ↓
-AI: Preprocessing → Ekstraksi Skill → SBERT Scoring → Skill Gap
+AI: SBERT Scoring → Top-20 Job Matching
      ↓
-Backend: Simpan hasil ke DB (cv_skills, analysis_history, analysis_details)
+Backend: Simpan hasil ke DB (cv_archives, cv_skills, analysis_history, analysis_details)
      ↓
-Frontend: Polling status → Tampilkan Top-20 Rekomendasi + Detail Analisis
+Frontend: Polling status → Tampilkan Top-20 Rekomendasi + Detail Analisis per Job
 ```
 
 ---
