@@ -1,6 +1,69 @@
 import express from "express";
+import { internalOnly } from "../middlewares/internal.middleware.js";
 
 const router = express.Router();
+
+/**
+ * @swagger
+ * /internal/ai/preview:
+ *   post:
+ *     summary: Preview Analysis (Guest - No Job Matching)
+ *     tags: [Internal]
+ *     description: |
+ *       **INTERNAL ENDPOINT - NOT FOR PUBLIC USE**
+ *
+ *       Called by Backend for guest preview analysis.
+ *       Performs preprocessing, skill extraction, and skill gap analysis WITHOUT job matching.
+ *       Returns basic CV insights and skills only (no job recommendations).
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - cv_text
+ *             properties:
+ *               cv_text:
+ *                 type: string
+ *                 description: Parsed CV text content
+ *                 example: "Experienced Software Engineer with 5 years in Node.js, React, and PostgreSQL"
+ *     responses:
+ *       200:
+ *         description: Preview analysis completed
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 preview_score:
+ *                   type: number
+ *                   description: CV quality score (0-100)
+ *                   example: 75
+ *                 extracted_skills:
+ *                   type: array
+ *                   items:
+ *                     type: string
+ *                   example: ["Node.js", "React", "PostgreSQL"]
+ *                 skill_gap:
+ *                   type: array
+ *                   items:
+ *                     type: string
+ *                   description: Skills the CV is missing
+ *                   example: ["Docker", "Kubernetes"]
+ *                 ai_insight:
+ *                   type: array
+ *                   items:
+ *                     type: string
+ *                   example: ["Your backend skills are solid", "Consider learning Docker"]
+ *                 summary:
+ *                   type: string
+ *                   example: "Good CV with relevant IT skills"
+ *       400:
+ *         $ref: '#/components/responses/BadRequestError'
+ *       501:
+ *         description: AI service not available
+ */
 
 /**
  * @swagger
@@ -66,27 +129,6 @@ const router = express.Router();
  *       501:
  *         description: AI service not available
  */
-router.post("/extract", async (req, res, next) => {
-  try {
-    const { cv_text, user_id, cv_id } = req.body;
-
-    if (!cv_text) {
-      return res.status(400).json({
-        success: false,
-        message: "cv_text is required",
-      });
-    }
-
-    // In production, this would call the Python AI service
-    // or local NLP model to extract skills
-    res.status(501).json({
-      success: false,
-      message: "This endpoint requires AI service to be running",
-    });
-  } catch (error) {
-    next(error);
-  }
-});
 
 /**
  * @swagger
@@ -172,7 +214,55 @@ router.post("/extract", async (req, res, next) => {
  *       501:
  *         description: AI service not available
  */
-router.post("/match", async (req, res, next) => {
+
+// Preview endpoint - for guest quick analysis (no job matching)
+router.post("/preview", internalOnly, async (req, res, next) => {
+  try {
+    const { cv_text } = req.body;
+
+    if (!cv_text) {
+      return res.status(400).json({
+        success: false,
+        message: "cv_text is required",
+      });
+    }
+
+    // In production, this would call the Python AI service
+    // for preview analysis without job matching
+    res.status(501).json({
+      success: false,
+      message: "This endpoint requires AI service to be running",
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Extract skills endpoint
+router.post("/extract", internalOnly, async (req, res, next) => {
+  try {
+    const { cv_text, user_id, cv_id } = req.body;
+
+    if (!cv_text) {
+      return res.status(400).json({
+        success: false,
+        message: "cv_text is required",
+      });
+    }
+
+    // In production, this would call the Python AI service
+    // or local NLP model to extract skills
+    res.status(501).json({
+      success: false,
+      message: "This endpoint requires AI service to be running",
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Match endpoint
+router.post("/match", internalOnly, async (req, res, next) => {
   try {
     const { cv_text, cv_id, user_id, filtered_jobs } = req.body;
 

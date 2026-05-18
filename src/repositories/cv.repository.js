@@ -27,21 +27,23 @@ class CvRepository {
     fileName,
     fileUrl,
     rawText,
+    cvSource = "upload",
     status = "processing",
   }) {
     const id = uuidv4();
     const query = `
-      INSERT INTO cv_archives (id, user_id, file_url, file_name, raw_text, status, uploaded_at)
-      VALUES ($1, $2, $3, $4, $5, $6, NOW())
-      RETURNING id, user_id, file_url, file_name, raw_text, status, uploaded_at
+      INSERT INTO cv_archives (id, user_id, file_url, file_name, raw_text, cv_source, status, uploaded_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+      RETURNING id, user_id, file_url, file_name, raw_text, cv_source, status, uploaded_at
     `;
 
     const { rows } = await pool.query(query, [
       id,
       userId,
-      fileUrl,
-      fileName,
+      fileUrl || null,
+      fileName || null,
       rawText,
+      cvSource,
       status,
     ]);
     return rows[0];
@@ -50,7 +52,7 @@ class CvRepository {
   // Get CV Archive by ID
   async getCvArchiveById(id) {
     const query = `
-      SELECT id, user_id, file_url, file_name, raw_text, status, uploaded_at
+      SELECT id, user_id, file_url, file_name, raw_text, cv_source, status, uploaded_at
       FROM cv_archives
       WHERE id = $1
     `;
@@ -64,7 +66,7 @@ class CvRepository {
       UPDATE cv_archives
       SET status = $1, updated_at = NOW()
       WHERE id = $2
-      RETURNING id, user_id, file_url, file_name, raw_text, status, uploaded_at
+      RETURNING id, user_id, file_url, file_name, raw_text, cv_source, status, uploaded_at
     `;
     const { rows } = await pool.query(query, [status, id]);
     return rows[0];
@@ -103,7 +105,7 @@ class CvRepository {
   // Get latest CV for user
   async getLatestCvByUserId(userId) {
     const query = `
-      SELECT id, user_id, file_url, file_name, raw_text, status, uploaded_at
+      SELECT id, user_id, file_url, file_name, raw_text, cv_source, status, uploaded_at
       FROM cv_archives
       WHERE user_id = $1 AND status = 'active'
       ORDER BY uploaded_at DESC
@@ -116,7 +118,7 @@ class CvRepository {
   // Get all CV archives for user
   async getCvArchivesByUserId(userId) {
     const query = `
-      SELECT id, user_id, file_url, file_name, raw_text, status, uploaded_at
+      SELECT id, user_id, file_url, file_name, raw_text, cv_source, status, uploaded_at
       FROM cv_archives
       WHERE user_id = $1
       ORDER BY uploaded_at DESC

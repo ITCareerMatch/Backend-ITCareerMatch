@@ -1,7 +1,7 @@
 import { Worker } from "bullmq";
 import IORedis from "ioredis";
 import axios from "axios";
-import { cvAnalysisQueue } from "./queue.js";
+import { cvAnalysisQueue, updateTaskStatus } from "./queue.js";
 import cvRepository from "../repositories/cv.repository.js";
 import analysisRepository from "../repositories/analysis.repository.js";
 import jobRepository from "../repositories/job.repository.js";

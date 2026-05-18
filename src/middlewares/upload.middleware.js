@@ -16,4 +16,18 @@ const upload = multer({
   },
 });
 
-export const uploadCv = upload.single("file");
+// Middleware that accepts both file and form fields
+export const uploadCv = (req, res, next) => {
+  upload.single("file")(req, res, (err) => {
+    if (err) {
+      return res.status(400).json({
+        success: false,
+        message: err.message,
+      });
+    }
+    // Continue to next middleware/handler
+    // req.file will contain file if uploaded
+    // req.body will contain form fields including cv_data
+    next();
+  });
+};

@@ -22,10 +22,6 @@ export const authenticate = async (req, res, next) => {
       error,
     } = await supabase.auth.getUser(token);
 
-    console.log("TOKEN:", token);
-    console.log("ERROR:", error);
-    console.log("USER:", user);
-
     if (error || !user) {
       return res.status(401).json({
         message: "Invalid token",
@@ -36,7 +32,7 @@ export const authenticate = async (req, res, next) => {
 
     next();
   } catch (err) {
-    console.log(err);
+    console.error("Auth error:", err.message);
     next(err);
   }
 };

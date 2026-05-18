@@ -13,6 +13,18 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Debug middleware - log incoming requests
+app.use((req, res, next) => {
+  if (req.path.includes("/cv/preview")) {
+    console.log(`\n[${new Date().toISOString()}] ${req.method} ${req.path}`);
+    console.log("Headers:", {
+      "content-type": req.headers["content-type"],
+      "content-length": req.headers["content-length"],
+    });
+  }
+  next();
+});
+
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // v1 API structure

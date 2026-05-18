@@ -4,6 +4,7 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
+    "migrate": "node src/migrations/runner.js",
     "dev": "nodemon src/index.js",
     "start": "node src/index.js",
     "worker": "nodemon src/worker.js",
