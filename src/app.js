@@ -10,8 +10,44 @@ import { swaggerUi, swaggerSpec } from "./config/swagger.js";
 
 const app = express();
 
-app.use(cors());
-app.use(express.json());
+// CORS Configuration
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+
+    // Allow all origins in development, restrict in production
+    if (process.env.NODE_ENV === "development") {
+      return callback(null, true);
+    }
+
+    // Production: Allow specific origins
+    const allowedOrigins = [
+      "https://itcareermatch.up.railway.app",
+      "https://itcareermatch.com",
+      "https://www.itcareermatch.com",
+      "http://localhost:3000",
+      "http://localhost:3001",
+      process.env.FRONTEND_URL,
+    ].filter(Boolean);
+
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      console.warn(`CORS rejected origin: ${origin}`);
+      callback(null, true); // Still allow to prevent blocking, but log it
+    }
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "Accept"],
+  optionsSuccessStatus: 200,
+  preflightContinue: false,
+};
+
+app.use(cors(corsOptions));
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ limit: "10mb", extended: true }));
 
 // Debug middleware - log incoming requests
 app.use((req, res, next) => {

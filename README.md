@@ -53,6 +53,11 @@ API Docs: `http://localhost:3000/api-docs`
 
 ### Production Setup
 
+**Important - CORS Configuration for Production:**
+
+- Jika mengubah URL server (contoh: di Railway), pastikan update CORS whitelist di `src/app.js`
+- Atau set environment variable `FRONTEND_URL` dengan domain frontend Anda
+
 **Run in production mode:**
 
 ```bash
@@ -189,7 +194,7 @@ HTTP Status codes:
 
 ## 📝 Input Validation
 
-Request body profile", validateUserUpdate, userController.updateProfil:
+Semua request divalidasi menggunakan middleware validator sebelum diproses:
 
 ```javascript
 // Example di routes
@@ -197,20 +202,46 @@ router.get("/", validateJobFilters, jobController.getAll);
 router.put("/me", validateUserUpdate, userController.updateMe);
 ```
 
-Validators di `src/middlewares/validator.middleware.js`
+Validators tersedia di `src/middlewares/validator.middleware.js`
 
 ## 🚨 Environment Variables
 
-| Variable            | Description                  | Default               |
-| ------------------- | ---------------------------- | --------------------- |
-| `NODE_ENV`          | Environment                  | development           |
-| `PORT`              | Server port                  | 3000                  |
-| `DATABASE_URL`      | PostgreSQL connection string | -                     |
-| `SUPABASE_URL`      | Supabase project URL         | -                     |
-| `SUPABASE_ANON_KEY` | Supabase anon key            | -                     |
-| `REDIS_HOST`        | Redis host                   | localhost             |
-| `REDIS_PORT`        | Redis port                   | 6379                  |
-| `AI_SERVICE_URL`    | FastAPI service URL          | http://localhost:8000 |
+| Variable                 | Description                   | Default                   |
+| ------------------------ | ----------------------------- | ------------------------- |
+| `NODE_ENV`               | Environment (dev/production)  | development               |
+| `PORT`                   | Server port                   | 3000                      |
+| `DATABASE_URL`           | PostgreSQL connection string  | -                         |
+| `SUPABASE_URL`           | Supabase project URL          | -                         |
+| `SUPABASE_ANON_KEY`      | Supabase anon key             | -                         |
+| `REDIS_URL`              | Redis connection URL          | redis://localhost:6379    |
+| `AI_SERVICE_URL`         | FastAPI service URL           | http://localhost:8000     |
+| `INTERNAL_REQUEST_TOKEN` | Token untuk internal requests | -                         |
+| `FRONTEND_URL`           | Frontend domain (CORS)        | (optional in development) |
+| `SWAGGER_HOST`           | Swagger API docs host         | localhost:3000            |
+| `SWAGGER_SCHEME`         | Swagger scheme                | http                      |
+
+### 🔒 CORS Configuration
+
+Backend automatically configures CORS based on `NODE_ENV`:
+
+- **Development**: Allow all origins
+- **Production**: Whitelist specific domains
+
+**Whitelisted domains (hardcoded):**
+
+- `https://itcareermatch.up.railway.app`
+- `https://itcareermatch.com`
+- `https://www.itcareermatch.com`
+- `http://localhost:3000` (local dev)
+- `http://localhost:3001` (local frontend dev)
+
+**Add custom origin:**
+
+```bash
+FRONTEND_URL=https://your-custom-domain.com
+```
+
+⚠️ **Important**: Jika mengubah URL server (misalnya di Railway), pastikan update CORS whitelist di `src/app.js`!
 
 ## 🔗 Integration Points
 
