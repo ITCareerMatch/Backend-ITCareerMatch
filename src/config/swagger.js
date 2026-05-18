@@ -6,7 +6,8 @@ let serverUrl;
 
 if (process.env.NODE_ENV === "production") {
   // Production: Always use Railway URL or custom domain
-  const swaggerHost = process.env.SWAGGER_HOST || "itcareermatch.up.railway.app";
+  const swaggerHost =
+    process.env.SWAGGER_HOST || "itcareermatch.up.railway.app";
   const swaggerScheme = process.env.SWAGGER_SCHEME || "https";
   serverUrl = `${swaggerScheme}://${swaggerHost}`;
   console.log(`[Swagger] Production mode: ${serverUrl}`);
