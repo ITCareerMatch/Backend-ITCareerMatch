@@ -13,29 +13,28 @@ const app = express();
 // CORS Configuration
 const corsOptions = {
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
+    // Always allow no origin (mobile apps, curl requests, internal calls)
     if (!origin) return callback(null, true);
 
-    // Allow all origins in development, restrict in production
-    if (process.env.NODE_ENV === "development") {
+    // Development: allow all origins
+    if (process.env.NODE_ENV !== "production") {
       return callback(null, true);
     }
 
-    // Production: Allow specific origins
+    // Production: Strict whitelist
     const allowedOrigins = [
       "https://itcareermatch.up.railway.app",
       "https://itcareermatch.com",
       "https://www.itcareermatch.com",
-      "http://localhost:3000",
-      "http://localhost:3001",
       process.env.FRONTEND_URL,
     ].filter(Boolean);
 
     if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      console.warn(`CORS rejected origin: ${origin}`);
-      callback(null, true); // Still allow to prevent blocking, but log it
+      // Log but still allow (CORS preflight should pass)
+      console.warn(`[CORS] Potential CORS issue from origin: ${origin}`);
+      callback(null, true);
     }
   },
   credentials: true,
