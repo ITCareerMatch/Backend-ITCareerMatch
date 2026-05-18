@@ -206,19 +206,19 @@ Validators tersedia di `src/middlewares/validator.middleware.js`
 
 ## 🚨 Environment Variables
 
-| Variable                 | Description                   | Default                   |
-| ------------------------ | ----------------------------- | ------------------------- |
-| `NODE_ENV`               | Environment (dev/production)  | development               |
-| `PORT`                   | Server port                   | 3000                      |
-| `DATABASE_URL`           | PostgreSQL connection string  | -                         |
-| `SUPABASE_URL`           | Supabase project URL          | -                         |
-| `SUPABASE_ANON_KEY`      | Supabase anon key             | -                         |
-| `REDIS_URL`              | Redis connection URL          | redis://localhost:6379    |
-| `AI_SERVICE_URL`         | FastAPI service URL           | http://localhost:8000     |
-| `INTERNAL_REQUEST_TOKEN` | Token untuk internal requests | -                         |
-| `FRONTEND_URL`           | Frontend domain (CORS)        | (optional in development) |
-| `SWAGGER_HOST`           | Swagger API docs host         | localhost:3000            |
-| `SWAGGER_SCHEME`         | Swagger scheme                | http                      |
+| Variable                 | Description                   | Default                                                    |
+| ------------------------ | ----------------------------- | ---------------------------------------------------------- |
+| `NODE_ENV`               | Environment (dev/production)  | development                                                |
+| `PORT`                   | Server port                   | 3000                                                       |
+| `DATABASE_URL`           | PostgreSQL connection string  | -                                                          |
+| `SUPABASE_URL`           | Supabase project URL          | -                                                          |
+| `SUPABASE_ANON_KEY`      | Supabase anon key             | -                                                          |
+| `REDIS_URL`              | Redis connection URL          | redis://localhost:6379                                     |
+| `AI_SERVICE_URL`         | FastAPI service URL           | http://localhost:8000                                      |
+| `INTERNAL_REQUEST_TOKEN` | Token untuk internal requests | -                                                          |
+| `FRONTEND_URL`           | Frontend domain (CORS)        | (optional in development)                                  |
+| `SWAGGER_HOST`           | Swagger API docs host         | localhost:3000 (dev) / itcareermatch.up.railway.app (prod) |
+| `SWAGGER_SCHEME`         | Swagger scheme                | http (dev) / https (prod)                                  |
 
 ### 🔒 CORS Configuration
 

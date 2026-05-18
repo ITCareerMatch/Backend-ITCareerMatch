@@ -1,10 +1,16 @@
 import swaggerJsdoc from "swagger-jsdoc";
 import swaggerUi from "swagger-ui-express";
 
-// Dynamic server URL based on environment
-const serverUrl = `${process.env.SWAGGER_SCHEME || "http"}://${
-  process.env.SWAGGER_HOST || "localhost:3000"
-}`;
+let serverUrl;
+
+if (process.env.NODE_ENV === "production") {
+  const swaggerHost =
+    process.env.SWAGGER_HOST || "itcareermatch.up.railway.app";
+  const swaggerScheme = process.env.SWAGGER_SCHEME || "https";
+  serverUrl = `${swaggerScheme}://${swaggerHost}`;
+} else {
+  serverUrl = `http://localhost:${process.env.PORT || 3000}`;
+}
 
 const options = {
   definition: {
