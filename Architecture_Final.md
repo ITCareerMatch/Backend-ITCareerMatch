@@ -557,6 +557,8 @@ Deskripsi tambahan: Berpengalaman dalam analisis data dan visualisasi dashboard
 | Method | Endpoint | Fungsi |
 |---|---|---|
 | `GET` | `/api/v1/user/profile` | Ambil data profil user yang sedang login |
+| `PUT` | `/api/v1/user/profile` | Update data profil (nama, gender, avatar_url) |
+| `DELETE` | `/api/v1/user/profile` | Hapus akun user beserta seluruh data terkait |
 | `POST` | `/api/v1/cv/analyze` | Upload PDF atau submit input manual CV (authenticated). BE parsing/convert → simpan ke `cv_archives` → trigger full AI analysis via queue → return `task_id` |
 | `POST` | `/api/v1/cv/claim` | Claim temporary session setelah login. FE kirim `temp_token` → BE ambil dari Redis → lanjut full analysis → return `task_id` |
 | `GET` | `/api/v1/cv/status/:task_id` | Cek status antrian AI: `processing` / `completed` / `failed` |
@@ -692,6 +694,8 @@ Fokus core fitur saat ini:
 | `GET /api/v1/analysis/history` | `analysis_history` |
 | `GET /api/v1/analysis/:id` | `analysis_history`, `analysis_details`, `skills` |
 | `GET /api/v1/user/profile` | `users` |
+| `PUT /api/v1/user/profile` | `users` |
+| `DELETE /api/v1/user/profile` | `users`, `auth.users` (cascade) |
 
 ---
 
