@@ -35,7 +35,7 @@ export const validatePagination = (req, res, next) => {
 export const validateUserUpdate = (req, res, next) => {
   const schema = Joi.object({
     name: Joi.string().max(255).optional(),
-    gender: Joi.string().length(1).valid("L", "P").optional(),
+    gender: Joi.string().valid("male", "female", "other").optional(),
     avatar_url: Joi.string().uri().optional(),
   });
 
