@@ -165,7 +165,7 @@ Table users {
   name         varchar
   email        varchar     [unique, not null]
   auth_provider varchar    [note: 'email | google']
-  gender       varchar(1)  [note: 'L | P']
+  gender       varchar(10) [note: 'male | female | other']
   avatar_url   text
   is_verified  boolean     [default: false]
   created_at   timestamp   [default: `now()`]
