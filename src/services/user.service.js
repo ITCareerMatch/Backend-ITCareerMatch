@@ -8,6 +8,10 @@ class UserService {
   async updateUserById(id, update) {
     return userRepository.updateById(id, update);
   }
+
+  async deleteUserById(id) {
+    return userRepository.deleteById(id);
+  }
 }
 
 export default new UserService();

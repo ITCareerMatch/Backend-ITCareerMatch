@@ -22,6 +22,16 @@ class UserController {
       next(err);
     }
   }
+
+  async deleteMe(req, res, next) {
+    try {
+      const userId = req.user.id;
+      await userService.deleteUserById(userId);
+      res.json({ success: true, message: "Account successfully deleted" });
+    } catch (err) {
+      next(err);
+    }
+  }
 }
 
 export default new UserController();

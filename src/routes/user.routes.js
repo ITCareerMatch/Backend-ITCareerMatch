@@ -105,7 +105,30 @@ const router = express.Router();
  *         $ref: '#/components/responses/BadRequestError'
  *       401:
  *         $ref: '#/components/responses/UnauthorizedError'
+ *   delete:
+ *     summary: Delete Current User Account
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     description: Permanently delete the authenticated user's account and all associated data
+ *     responses:
+ *       200:
+ *         description: Account successfully deleted
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: Account successfully deleted
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
  */
+
 router.get("/profile", authenticate, userController.getMe);
 router.put(
   "/profile",
@@ -113,5 +136,6 @@ router.put(
   validateUserUpdate,
   userController.updateMe,
 );
+router.delete("/profile", authenticate, userController.deleteMe);
 
 export default router;

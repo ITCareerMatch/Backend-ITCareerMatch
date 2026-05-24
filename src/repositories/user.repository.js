@@ -25,6 +25,10 @@ class UserRepository {
     );
     return this.findById(id);
   }
+
+  async deleteById(id) {
+    await pool.query(`DELETE FROM users WHERE id = $1`, [id]);
+  }
 }
 
 export default new UserRepository();
