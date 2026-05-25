@@ -13,12 +13,19 @@ class UserRepository {
     const fields = [];
     const values = [id];
     let idx = 2;
+
+    const allowedColumns = ["name", "gender", "avatar_url"];
+
     for (const key in update) {
-      fields.push(`${key} = $${idx}`);
-      values.push(update[key]);
-      idx++;
+      if (allowedColumns.includes(key) && update[key] !== undefined) {
+        fields.push(`${key} = $${idx}`);
+        values.push(update[key]);
+        idx++;
+      }
     }
+
     if (!fields.length) return this.findById(id);
+
     await pool.query(
       `UPDATE users SET ${fields.join(", ")}, updated_at = NOW() WHERE id = $1`,
       values,

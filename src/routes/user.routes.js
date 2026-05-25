@@ -1,9 +1,11 @@
 import express from "express";
+import multer from "multer";
 import userController from "../controllers/user.controller.js";
 import { authenticate } from "../middlewares/auth.middleware.js";
 import { validateUserUpdate } from "../middlewares/validator.middleware.js";
 
 const router = express.Router();
+const upload = multer({ storage: multer.memoryStorage() });
 
 /**
  * @swagger
@@ -57,21 +59,19 @@ const router = express.Router();
  *     requestBody:
  *       required: true
  *       content:
- *         application/json:
+ *         multipart/form-data:
  *           schema:
  *             type: object
  *             properties:
  *               name:
  *                 type: string
- *                 example: John Doe
  *               gender:
  *                 type: string
  *                 enum: [male, female, other]
- *                 example: male
- *               avatar_url:
+ *               avatar:
  *                 type: string
- *                 format: uri
- *                 nullable: true
+ *                 format: binary
+ *                 description: File gambar avatar (.jpg/.png)
  *     responses:
  *       200:
  *         description: Profile successfully updated
@@ -133,6 +133,7 @@ router.get("/profile", authenticate, userController.getMe);
 router.put(
   "/profile",
   authenticate,
+  upload.single("avatar"),
   validateUserUpdate,
   userController.updateMe,
 );

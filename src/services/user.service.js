@@ -6,8 +6,43 @@ class UserService {
     return userRepository.findById(id);
   }
 
-  async updateUserById(id, update) {
-    return userRepository.updateById(id, update);
+  async updateUserById(id, body, file) {
+    const updateData = { ...body };
+
+    if (file) {
+      const existingUser = await userRepository.findById(id);
+
+      const fileExtension = file.originalname.split(".").pop();
+      const fileName = `avatars/${id}-${Date.now()}.${fileExtension}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("avatars")
+        .upload(fileName, file.buffer, {
+          contentType: file.mimetype,
+          upsert: true,
+        });
+
+      if (uploadError) {
+        throw new Error(`Storage upload failed: ${uploadError.message}`);
+      }
+
+      if (existingUser?.avatar_url) {
+        const oldPath = existingUser.avatar_url.split(
+          "/storage/v1/object/public/avatars/",
+        )[1];
+        if (oldPath) {
+          await supabase.storage.from("avatars").remove([oldPath]);
+        }
+      }
+
+      const { data: publicUrlData } = supabase.storage
+        .from("avatars")
+        .getPublicUrl(fileName);
+
+      updateData.avatar_url = publicUrlData.publicUrl;
+    }
+
+    return userRepository.updateById(id, updateData);
   }
 
   async deleteUserById(id) {
