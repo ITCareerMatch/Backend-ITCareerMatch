@@ -121,6 +121,23 @@ class JobRepository {
       },
     };
   }
+
+  async findById(id) {
+    const query = `
+      SELECT j.id, j.title, j.company_name, j.external_url, j.city, j.province, j.location, j.salary_raw, j.salary_min, j.salary_max, j.min_age, j.max_age, j.age_note, j.education_level, j.gender_required, j.job_type, j.work_system, j.requirements, j.created_at, j.updated_at,
+      (
+        SELECT json_agg(s.name)
+        FROM job_skills js
+        JOIN skills s ON s.id = js.skill_id
+        WHERE js.job_id = j.id
+      ) as skills
+      FROM jobs j
+      WHERE j.id = $1
+    `;
+
+    const result = await pool.query(query, [id]);
+    return result.rows[0];
+  }
 }
 
 export default new JobRepository();
