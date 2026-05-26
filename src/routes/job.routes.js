@@ -31,6 +31,50 @@ const router = express.Router();
  *           type: string
  *         description: Filter by province name (e.g., "DI Yogyakarta")
  *       - in: query
+ *         name: minSalary
+ *         schema:
+ *           type: integer
+ *         description: Minimum salary filter
+ *       - in: query
+ *         name: maxSalary
+ *         schema:
+ *           type: integer
+ *         description: Maximum salary filter
+ *       - in: query
+ *         name: minAge
+ *         schema:
+ *           type: integer
+ *         description: Minimum age requirement
+ *       - in: query
+ *         name: maxAge
+ *         schema:
+ *           type: integer
+ *         description: Maximum age requirement
+ *       - in: query
+ *         name: education_level
+ *         schema:
+ *           type: string
+ *           enum: [sma, d3, s1, s2, semua]
+ *         description: "Filter by education level"
+ *       - in: query
+ *         name: gender
+ *         schema:
+ *           type: string
+ *           enum: [laki-laki, perempuan, semua]
+ *         description: "Filter by gender requirement"
+ *       - in: query
+ *         name: job_type
+ *         schema:
+ *           type: string
+ *           enum: [penuh-waktu, kontrak, magang, paruh-waktu, freelance]
+ *         description: "Filter by job type"
+ *       - in: query
+ *         name: work_system
+ *         schema:
+ *           type: string
+ *           enum: [di-kantor, remote, hybrid]
+ *         description: "Filter by work system"
+ *       - in: query
  *         name: page
  *         schema:
  *           type: integer

@@ -19,7 +19,7 @@ class JobController {
         gender,
         job_type,
         work_system,
-      } = req.query;
+      } = req.validatedQuery;
 
       // Validasi dan set default value
       page = Number(page);
@@ -40,8 +40,6 @@ class JobController {
 
       maxAge = Number(maxAge);
       if (isNaN(maxAge)) maxAge = undefined;
-
-      // education_level dan gender biarkan string/null
 
       const result = await jobService.getAllJobs({
         page,

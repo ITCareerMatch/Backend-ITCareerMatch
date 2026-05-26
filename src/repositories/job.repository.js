@@ -1,4 +1,9 @@
 import pool from "../config/db.js";
+import {
+  JOB_TYPE_MAP,
+  WORK_SYSTEM_MAP,
+  EDUCATION_LEVEL_MAP,
+} from "../constants/jobFilters.js";
 
 class JobRepository {
   async findAll({
@@ -16,109 +21,123 @@ class JobRepository {
     job_type,
     work_system,
   }) {
-    let baseWhere = ` WHERE j.is_active = true`;
+    let baseWhere = `WHERE j.is_active = true`;
     const values = [];
 
-    // SEARCH
     if (search) {
       values.push(`%${search}%`);
-      baseWhere += ` AND j.title ILIKE $${values.length}`;
+      baseWhere += ` AND (j.title ILIKE $${values.length} OR j.company_name ILIKE $${values.length})`;
     }
 
-    // CITY
     if (city) {
-      values.push(city);
+      values.push(`%${city}%`);
       baseWhere += ` AND j.city ILIKE $${values.length}`;
     }
 
-    // PROVINCE
     if (province) {
-      values.push(province);
+      values.push(`%${province}%`);
       baseWhere += ` AND j.province ILIKE $${values.length}`;
     }
 
-    // MIN AGE
-    if (minAge) {
+    if (minAge !== undefined) {
       values.push(minAge);
-      baseWhere += ` AND j.min_age >= $${values.length}`;
+      baseWhere += ` AND (j.min_age IS NULL OR j.min_age >= $${values.length})`;
     }
 
-    // MAX AGE
-    if (maxAge) {
+    if (maxAge !== undefined) {
       values.push(maxAge);
-      baseWhere += ` AND j.max_age <= $${values.length}`;
+      baseWhere += ` AND (j.max_age IS NULL OR j.max_age <= $${values.length})`;
     }
 
-    // EDUCATION LEVEL
+    // Education: translate dari enum key ke nilai DB
     if (education_level) {
-      values.push(education_level);
-      baseWhere += ` AND j.education_level ILIKE $${values.length}`;
+      const dbValue = EDUCATION_LEVEL_MAP[education_level.toLowerCase()];
+      if (dbValue) {
+        values.push(dbValue);
+        baseWhere += ` AND j.education_level = $${values.length}`;
+      }
     }
 
-    // GENDER
+    // Gender
     if (gender) {
-      values.push(gender);
-      baseWhere += ` AND j.gender_required ILIKE $${values.length}`;
+      const genderMap = {
+        "laki-laki": "Laki-laki saja",
+        perempuan: "Perempuan saja",
+        semua: "tanpa ketentuan",
+      };
+      const dbGender = genderMap[gender.toLowerCase()];
+      if (dbGender) {
+        values.push(dbGender);
+        baseWhere += ` AND j.gender_required = $${values.length}`;
+      }
     }
 
-    // SALARY RANGE
-    if (minSalary) {
+    if (minSalary !== undefined) {
       values.push(minSalary);
       baseWhere += ` AND j.salary_min >= $${values.length}`;
     }
 
-    if (maxSalary) {
+    if (maxSalary !== undefined) {
       values.push(maxSalary);
-      baseWhere += ` AND j.salary_max <= $${values.length}`;
+      baseWhere += ` AND (j.salary_max IS NULL OR j.salary_max <= $${values.length})`;
     }
 
-    // JOB TYPE
+    // Job type: translate dari enum key ke nilai DB
     if (job_type) {
-      values.push(job_type);
-      baseWhere += ` AND j.job_type ILIKE $${values.length}`;
+      const dbJobType = JOB_TYPE_MAP[job_type.toLowerCase()];
+      if (dbJobType) {
+        values.push(dbJobType);
+        baseWhere += ` AND j.job_type = $${values.length}`;
+      }
     }
 
-    // WORK SYSTEM
+    // Work system: translate dari enum key ke nilai DB
     if (work_system) {
-      values.push(work_system);
-      baseWhere += ` AND j.work_system ILIKE $${values.length}`;
+      const dbWorkSystem = WORK_SYSTEM_MAP[work_system.toLowerCase()];
+      if (dbWorkSystem) {
+        values.push(dbWorkSystem);
+        baseWhere += ` AND j.work_system = $${values.length}`;
+      }
     }
 
+    // COUNT
     const countQuery = `SELECT COUNT(*) FROM jobs j ${baseWhere}`;
     const countResult = await pool.query(countQuery, values);
     const total = Number(countResult.rows[0].count);
 
+    // PAGINATION
     const offset = (page - 1) * limit;
-
     values.push(limit);
-    const limitParamIndex = values.length;
-
+    const limitIdx = values.length;
     values.push(offset);
-    const offsetParamIndex = values.length;
+    const offsetIdx = values.length;
 
     const mainQuery = `
-      SELECT j.id, j.title, j.company_name, j.external_url, j.city, j.province, j.location, j.salary_raw, j.salary_min, j.salary_max, j.min_age, j.max_age, j.age_note, j.education_level, j.gender_required, j.job_type, j.work_system, j.requirements, j.created_at, j.updated_at,
-      (
-        SELECT json_agg(s.name)
-        FROM job_skills js
-        JOIN skills s ON s.id = js.skill_id
-        WHERE js.job_id = j.id
-      ) as skills
+      SELECT 
+        j.id, j.title, j.company_name, j.external_url,
+        j.city, j.province, j.location,
+        j.salary_raw, j.salary_min, j.salary_max,
+        j.min_age, j.max_age, j.age_note,
+        j.education_level, j.gender_required,
+        j.job_type, j.work_system,
+        j.requirements, j.created_at, j.updated_at,
+        (
+          SELECT json_agg(s.name)
+          FROM job_skills js
+          JOIN skills s ON s.id = js.skill_id
+          WHERE js.job_id = j.id
+        ) AS skills
       FROM jobs j
       ${baseWhere}
       ORDER BY j.created_at DESC
-      LIMIT $${limitParamIndex} OFFSET $${offsetParamIndex}
+      LIMIT $${limitIdx} OFFSET $${offsetIdx}
     `;
 
     const data = await pool.query(mainQuery, values);
 
     return {
       data: data.rows,
-      meta: {
-        page,
-        limit,
-        total,
-      },
+      meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
     };
   }
 

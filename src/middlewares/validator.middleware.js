@@ -63,7 +63,7 @@ export const validateJobFilters = (req, res, next) => {
     minAge: Joi.number().integer().min(0).max(100).optional(),
     maxAge: Joi.number().integer().min(0).max(100).optional(),
     education_level: Joi.string().max(100).optional(),
-    gender: Joi.string().valid("male", "female", "both").optional(),
+    gender: Joi.string().valid("laki-laki", "perempuan", "semua").optional(),
     job_type: Joi.string().max(100).optional(),
     work_system: Joi.string().max(100).optional(),
   });
