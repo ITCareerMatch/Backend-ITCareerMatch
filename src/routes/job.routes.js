@@ -123,7 +123,7 @@ const router = express.Router();
  *                         items:
  *                           type: string
  *                         example: ["PHP", "JavaScript", "Java", "MySQL"]
- *                 pagination:
+ *                 meta:
  *                   type: object
  *                   properties:
  *                     page:

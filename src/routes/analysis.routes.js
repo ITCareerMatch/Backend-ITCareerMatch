@@ -59,7 +59,7 @@ const router = express.Router();
  *                       analyzed_at:
  *                         type: string
  *                         format: date-time
- *                 pagination:
+ *                 meta:
  *                   type: object
  *                   properties:
  *                     page:
