@@ -5,8 +5,8 @@ import userRoutes from "./routes/user.routes.js";
 import cvRoutes from "./routes/cv.routes.js";
 import recommendationRoutes from "./routes/recommendation.routes.js";
 import analysisRoutes from "./routes/analysis.routes.js";
-import internalRoutes from "./routes/internal.routes.js";
 import { swaggerUi, swaggerSpec } from "./config/swagger.js";
+import aiRoutes from "./routes/ai.routes.js";
 
 const app = express();
 
@@ -32,7 +32,6 @@ const corsOptions = {
     if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      // Log but still allow (CORS preflight should pass)
       console.warn(`[CORS] Potential CORS issue from origin: ${origin}`);
       callback(null, true);
     }
@@ -48,7 +47,6 @@ app.use(cors(corsOptions));
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ limit: "10mb", extended: true }));
 
-// Debug middleware - log incoming requests
 app.use((req, res, next) => {
   if (req.path.includes("/cv/preview")) {
     console.log(`\n[${new Date().toISOString()}] ${req.method} ${req.path}`);
@@ -64,13 +62,13 @@ app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // v1 API structure
 app.use("/api/v1/cv", cvRoutes);
-app.use("/api/v1/jobs", jobRoutes);
 app.use("/api/v1/jobs", recommendationRoutes);
+app.use("/api/v1/jobs", jobRoutes);
 app.use("/api/v1/user", userRoutes);
 app.use("/api/v1/analysis", analysisRoutes);
 
 // Internal endpoints (Backend & Worker only)
-app.use("/internal/ai", internalRoutes);
+app.use("/internal/ai", aiRoutes);
 
 app.get("/health", (req, res) => {
   res.json({ status: "ok" });

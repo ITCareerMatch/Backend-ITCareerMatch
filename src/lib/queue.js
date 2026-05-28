@@ -1,25 +1,21 @@
 import { Queue } from "bullmq";
 import IORedis from "ioredis";
 
-// REDIS_URL includes port already
 const connection = new IORedis(
   process.env.REDIS_URL || "redis://localhost:6379",
 );
 
-// Queue untuk CV Analysis
-export const cvAnalysisQueue = new Queue("cv-analysis", {
+export const aiQueue = new Queue("aiQueue", {
   connection,
 });
 
-// Task metadata store in Redis (persistent)
 const TASK_PREFIX = "task:";
 const TASK_TTL = 7 * 24 * 60 * 60; // 7 days
 
 export async function addTaskToQueue({ taskId, userId, cvId, cvText }) {
   try {
-    // Add job to queue
-    await cvAnalysisQueue.add(
-      "analyze-cv",
+    await aiQueue.add(
+      "match-job",
       {
         taskId,
         userId,
@@ -33,12 +29,10 @@ export async function addTaskToQueue({ taskId, userId, cvId, cvText }) {
           type: "exponential",
           delay: 2000,
         },
-        // Add timeout of 5 minutes per job
         timeout: 5 * 60 * 1000,
       },
     );
 
-    // Store task metadata in Redis with TTL
     const taskKey = `${TASK_PREFIX}${taskId}`;
     await connection.setex(
       taskKey,
@@ -68,7 +62,7 @@ export async function getTaskStatus(taskId) {
     }
 
     // Fallback to queue status if not in Redis
-    const job = await cvAnalysisQueue.getJob(taskId);
+    const job = await aiQueue.getJob(taskId);
     if (!job) return "not-found";
 
     const state = await job.getState();
@@ -112,4 +106,50 @@ export function updateTaskStatus(taskId, status, result = null) {
     .catch((err) => {
       console.error(`Error updating task status for ${taskId}:`, err);
     });
+}
+
+export async function cleanupUserQueueJobs(userId, cvIds = []) {
+  try {
+    const jobs = await aiQueue.getJobs([
+      "waiting",
+      "delayed",
+      "paused",
+      "completed",
+      "failed",
+    ]);
+
+    let removedCount = 0;
+
+    for (const job of jobs) {
+      const jobUserId = job.data?.userId;
+      const jobCvId = job.data?.cvId;
+
+      if (jobUserId !== userId) {
+        continue;
+      }
+
+      if (cvIds.length > 0 && jobCvId && !cvIds.includes(jobCvId)) {
+        continue;
+      }
+
+      try {
+        if (job.data?.taskId) {
+          await connection.del(`${TASK_PREFIX}${job.data.taskId}`);
+        }
+
+        await job.remove();
+        removedCount++;
+      } catch (removeError) {
+        console.warn(
+          `Warning: Failed to remove queue job ${job.id} for user ${userId}:`,
+          removeError,
+        );
+      }
+    }
+
+    return removedCount;
+  } catch (error) {
+    console.error(`Error cleaning up queue jobs for user ${userId}:`, error);
+    throw error;
+  }
 }

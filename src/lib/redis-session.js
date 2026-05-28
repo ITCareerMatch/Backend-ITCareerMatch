@@ -84,6 +84,8 @@ export async function sessionExists(tempToken) {
   }
 }
 
+export { redis as redisConnection };
+
 export default {
   createGuestSession,
   getGuestSession,
