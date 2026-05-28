@@ -1,181 +1,175 @@
-# ITCareerMatch - Backend API
+# ITCareerMatch Backend API
 
-Backend service untuk ITCareerMatch - Platform matching pekerjaan berbasis AI untuk IT career.
+Backend service for ITCareerMatch, a job-matching platform that analyzes CVs, extracts skills, and returns job recommendations based on profile compatibility.
 
-## 🚀 Quick Start
+## Tech Stack
+
+- Node.js 18+ with Express
+- PostgreSQL via Supabase
+- Redis + BullMQ for async processing
+- Supabase Auth for JWT authentication
+- Supabase Storage for CV and avatar files
+- Swagger UI for API documentation
+- External AI service for CV and job matching
+
+## Quick Start
 
 ### Prerequisites
 
 - Node.js 18+
-- PostgreSQL (Supabase)
-- Redis
-- Supabase Account
+- PostgreSQL / Supabase project
+- Redis server
+- Supabase Auth enabled
+- AI service URL configured
 
-### Installation
-
-1. **Clone repository dan setup dependencies:**
+### Install dependencies
 
 ```bash
 npm install
 ```
 
-2. **Setup environment variables:**
+### Environment variables
 
-```bash
-cp .env.example .env
-```
-
-Edit `.env` dengan konfigurasi Supabase dan Redis Anda:
+Create a `.env` file and adjust the values for your environment.
 
 ```env
+NODE_ENV=development
+PORT=3000
 DATABASE_URL=postgresql://user:password@db.supabase.co:5432/postgres
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_ANON_KEY=your_anon_key
-REDIS_HOST=localhost
-REDIS_PORT=6379
-AI_SERVICE_URL=http://localhost:8000
+REDIS_URL=redis://localhost:6379
+AI_API_URL=https://your-ai-service.example.com
+INTERNAL_API_KEY=your_internal_api_key
+SWAGGER_HOST=localhost:3000
+SWAGGER_SCHEME=http
+FRONTEND_URL=http://localhost:3001
 ```
 
-3. **Start Redis (local development):**
+### Run locally
 
-```bash
-redis-server
-```
-
-4. **Run development server:**
+Start Redis first, then run the API:
 
 ```bash
 npm run dev
 ```
 
-Server akan running di `http://localhost:3000`
-API Docs: `http://localhost:3000/api-docs`
+Swagger docs are available at:
 
-### Production Setup
-
-**Important - CORS Configuration for Production:**
-
-- Jika mengubah URL server (contoh: di Railway), pastikan update CORS whitelist di `src/app.js`
-- Atau set environment variable `FRONTEND_URL` dengan domain frontend Anda
-
-**Run in production mode:**
-
-```bash
-npm run start
+```text
+http://localhost:3000/api-docs
 ```
 
-**Run queue worker (separate process):**
+### Run the worker
 
-```bash
-npm run worker:start
-```
-
-## 📚 Architecture
-
-### Struktur Folder
-
-```
-src/
-├── config/           # Konfigurasi (DB, Swagger)
-├── controllers/      # Request handlers
-├── routes/           # API routes
-├── services/         # Business logic
-├── repositories/     # Database queries
-├── middlewares/      # Express middlewares
-├── lib/              # Utilities & queue
-└── index.js          # Entry point
-```
-
-### Core Components
-
-1. **Express API** - REST endpoints untuk CV, Jobs, Analysis
-2. **BullMQ + Redis** - Queue system untuk async CV analysis
-3. **PostgreSQL** - Database via Supabase
-4. **Supabase Auth** - JWT authentication
-5. **FastAPI** - External AI service untuk skill extraction & matching
-
-## 🔌 API Endpoints
-
-### CV Management
-
-- `POST /api/v1/cv/upload` - Upload CV (guest, preview only)
-- `POST /api/v1/cv/analyze` - Upload & analyze CV (user, async)
-- `GET /api/v1/cv/status/:task_id` - Check analysis status
-
-### Jobs
-
-- `GET /api/v1/jobs` - List all jobs dengan filtering
-- `GET /api/v1/jobs/:id` - Job details
-- `GET /api/v1/jobs/recommendations` - Top-20 personalized job recommendations
-
-### Analysis
-
-- `GET /api/v1/analysis/history` - User's analysis history
-- `GET /api/v1/analysis/:id` - Analysis detail dengan skill breakdown
-
-### Internal Endpoints (Backend/Worker Only)
-
-- `POST /internal/ai/extract` - Extract skills dari CV text
-- `POST /internal/ai/match` - Match CV dengan filtered jobs
-
-### User
-
-- `GET /api/v1/user/profile` - Current user profile
-- `PUT /api/v1/user/profile` - Update user profile
-
-## 🔄 Queue System
-
-### How it works:
-
-1. User upload CV via `POST /api/v1/cv/analyze`
-2. Backend save CV dan add task ke queue
-3. Worker process CV: extract skills, calculate scores
-4. Save results ke database
-5. Frontend polling `/api/v1/cv/status/:task_id` untuk hasil
-
-### Start worker:
+The worker processes queued CV analysis jobs.
 
 ```bash
 npm run worker
 ```
 
-## 🗄️ Database
+You can also run the worker in production mode:
 
-Database schema sudah di-setup di Supabase. Struktur utama:
+```bash
+npm run worker:start
+```
 
-- `users` - User profiles
-- `jobs` - Job listings
-- `skills` - Master skill list
-- `job_skills` - Job-to-skill relationship
-- `cv_archives` - Uploaded CVs
-- `cv_skills` - Extracted skills dari CV
-- `analysis_history` - Match scoring history
-- `analysis_details` - Skill detail per analysis
+### Production
 
-## 🔐 Authentication
+```bash
+npm run start
+```
 
-Menggunakan Supabase Auth + JWT:
+## Available Scripts
+
+- `npm run dev` - Start the API in development mode with nodemon
+- `npm run start` - Start the API in production mode
+- `npm run worker` - Start the queue worker in development mode with nodemon
+- `npm run worker:start` - Start the queue worker in production mode
+- `npm run migrate` - Run database migrations
+
+## API Overview
+
+### Public endpoints
+
+- `GET /api/v1/jobs` - List jobs with filters
+- `GET /api/v1/jobs/:id` - Get job details
+- `POST /api/v1/cv/preview` - Preview CV as guest without saving to database
+
+### Authenticated endpoints
+
+- `GET /api/v1/user/profile` - Get current user profile
+- `PUT /api/v1/user/profile` - Update current user profile
+- `DELETE /api/v1/user/profile` - Delete current user account
+- `POST /api/v1/cv/analyze` - Upload and analyze CV asynchronously
+- `GET /api/v1/cv/status/:task_id` - Check analysis task status
+- `GET /api/v1/cv/archives` - List uploaded CV archives
+- `DELETE /api/v1/cv/archives/:id` - Delete a CV archive and related analysis data
+- `GET /api/v1/analysis/history` - List analysis history
+- `GET /api/v1/analysis/:id` - Get analysis details
+- `GET /api/v1/jobs/recommendations?cv_id=...` - Get top job recommendations for a specific CV
+
+### Internal endpoints
+
+- `POST /internal/ai/match` - Trigger internal AI matching flow
+- `POST /api/v1/cv/analyze-single` - Internal single-job CV analysis endpoint
+
+## Authentication
+
+This API uses Supabase Auth JWT tokens.
 
 ```bash
 Authorization: Bearer <supabase_jwt_token>
 ```
 
-Protected endpoints memerlukan valid JWT di header.
+Most private endpoints require a valid JWT in the `Authorization` header.
 
-## 🧪 Error Handling
+## Queue Flow
 
-API returns standard response format:
+1. User uploads a CV through `POST /api/v1/cv/analyze`
+2. API stores the CV and adds an analysis task to BullMQ
+3. Worker processes the task and calls the AI service
+4. Analysis results are saved to the database
+5. Client polls `GET /api/v1/cv/status/:task_id`
 
-**Success:**
+## Data Model
+
+Main tables used by the backend:
+
+- `users` - user profiles
+- `jobs` - job listings
+- `cv_archives` - uploaded CV files and metadata
+- `cv_skills` - extracted CV skills
+- `analysis_history` - CV and job match history
+- `analysis_details` - skill match and skill gap details
+- `skills` - master skill list
+- `job_skills` - job-to-skill mapping
+
+## Swagger Notes
+
+- Swagger UI is configured in `src/config/swagger.js`
+- Global bearer auth is enabled for protected routes
+- Public endpoints override this with `security: []`
+- Some update forms intentionally use blank dropdown values so Swagger does not prefill data
+
+## CORS Notes
+
+- Development allows local testing more loosely
+- Production uses a whitelist of frontend domains
+- Adjust the whitelist in `src/app.js` or use `FRONTEND_URL`
+
+## Error Format
+
+Success response:
 
 ```json
 {
   "success": true,
-  "data": { ... }
+  "data": {}
 }
 ```
 
-**Error:**
+Error response:
 
 ```json
 {
@@ -184,175 +178,15 @@ API returns standard response format:
 }
 ```
 
-HTTP Status codes:
+## Related Files
 
-- `200` - Success
-- `400` - Bad request / Validation error
-- `401` - Unauthorized
-- `404` - Not found
-- `500` - Server error
+- `src/index.js` - application entry point
+- `src/app.js` - Express app setup
+- `src/config/swagger.js` - Swagger configuration
+- `src/lib/queue.js` - BullMQ queue helpers
+- `src/worker.js` - worker entry point
+- `src/ai.worker.js` - AI job processor
 
-## 📝 Input Validation
+## License
 
-Semua request divalidasi menggunakan middleware validator sebelum diproses:
-
-```javascript
-// Example di routes
-router.get("/", validateJobFilters, jobController.getAll);
-router.put("/me", validateUserUpdate, userController.updateMe);
-```
-
-Validators tersedia di `src/middlewares/validator.middleware.js`
-
-## 🚨 Environment Variables
-
-| Variable                 | Description                   | Default                                                    |
-| ------------------------ | ----------------------------- | ---------------------------------------------------------- |
-| `NODE_ENV`               | Environment (dev/production)  | development                                                |
-| `PORT`                   | Server port                   | 3000                                                       |
-| `DATABASE_URL`           | PostgreSQL connection string  | -                                                          |
-| `SUPABASE_URL`           | Supabase project URL          | -                                                          |
-| `SUPABASE_ANON_KEY`      | Supabase anon key             | -                                                          |
-| `REDIS_URL`              | Redis connection URL          | redis://localhost:6379                                     |
-| `AI_SERVICE_URL`         | FastAPI service URL           | http://localhost:8000                                      |
-| `INTERNAL_REQUEST_TOKEN` | Token untuk internal requests | -                                                          |
-| `FRONTEND_URL`           | Frontend domain (CORS)        | (optional in development)                                  |
-| `SWAGGER_HOST`           | Swagger API docs host         | localhost:3000 (dev) / itcareermatch.up.railway.app (prod) |
-| `SWAGGER_SCHEME`         | Swagger scheme                | http (dev) / https (prod)                                  |
-
-### 🔒 CORS Configuration
-
-Backend automatically configures CORS based on `NODE_ENV`:
-
-- **Development**: Allow all origins
-- **Production**: Whitelist specific domains
-
-**Whitelisted domains (hardcoded):**
-
-- `https://itcareermatch.up.railway.app`
-- `https://itcareermatch.com`
-- `https://www.itcareermatch.com`
-- `http://localhost:3000` (local dev)
-- `http://localhost:3001` (local frontend dev)
-
-**Add custom origin:**
-
-```bash
-FRONTEND_URL=https://your-custom-domain.com
-```
-
-⚠️ **Important**: Jika mengubah URL server (misalnya di Railway), pastikan update CORS whitelist di `src/app.js`!
-
-## 🔗 Integration Points
-
-### AI Service Integration
-
-Backend communicate dengan FastAPI service melalui **internal endpoints** yang diproses oleh worker:
-
-**Internal Endpoints (Backend → Worker → AI Service):**
-
-- `POST /internal/ai/extract` - Extract skills dari CV text
-- `POST /internal/ai/match` - Match CV dengan filtered jobs
-
-**Purposes:**
-
-- Skill extraction dari CV
-- Similarity scoring (SBERT)
-- Skill gap analysis
-
-```json
-{
-  "cv_text": "...",
-  "user_id": "...",
-  "cv_id": "...",
-  "filtered_jobs": [...]
-}
-```
-
-Response:
-
-```json
-{
-  "extracted_skills": [...],
-  "recommendations": [
-    {
-      "job_id": "...",
-      "job_title": "...",
-      "match_score": 85.5,
-      "skill_match": [...],
-      "skill_gap": [...],
-      "ai_insight": "..."
-    }
-  ]
-}
-```
-
-## 📦 Dependencies
-
-Main packages:
-
-- `express` - Web framework
-- `bullmq` - Job queue
-- `redis` - Cache & queue store
-- `pg` - PostgreSQL client
-- `@supabase/supabase-js` - Supabase client
-- `joi` - Input validation
-- `multer` - File upload
-- `pdf-parse` - PDF parsing
-- `axios` - HTTP client
-- `swagger-jsdoc` - API documentation
-
-## 🛠️ Development
-
-**Hot reload:**
-
-```bash
-npm run dev
-```
-
-**Format code:**
-
-```bash
-npm run lint
-```
-
-**Generate API docs:**
-
-```bash
-npm run docs:generate
-```
-
-## 🐛 Troubleshooting
-
-### Redis Connection Error
-
-```
-Error: connect ECONNREFUSED 127.0.0.1:6379
-```
-
-Solusi: Start Redis server terlebih dahulu
-
-### Database Connection Error
-
-```
-error: password authentication failed
-```
-
-Solusi: Check DATABASE_URL di .env
-
-### Worker Not Processing
-
-Solusi:
-
-1. Ensure Redis is running
-2. Check `npm run worker` is running
-3. Verify AI_SERVICE_URL is correct
-
-## 📞 Support
-
-For issues atau questions, silakan buka issue di repository atau hubungi tim development.
-
----
-
-**Last Updated:** May 2026
-**Team:** ITCareerMatch Development Team
+Internal project.
