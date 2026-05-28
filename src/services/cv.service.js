@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from "uuid";
 import cvRepository from "../repositories/cv.repository.js";
 import { addTaskToQueue, getTaskStatus, getTaskResult } from "../lib/queue.js";
+import { supabase } from "../lib/supabase.js";
 import {
   createGuestSession,
   getGuestSession,
@@ -249,4 +250,41 @@ export async function getLatestCv(userId) {
 
 export async function getCvArchives(userId) {
   return cvRepository.getCvArchivesByUserId(userId);
+}
+
+export async function deleteCvArchive({ userId, cvId }) {
+  try {
+    const archive = await cvRepository.getCvArchiveById(cvId);
+
+    if (!archive || archive.user_id !== userId) {
+      throw new Error("CV archive not found");
+    }
+
+    if (archive.file_url) {
+      try {
+        const { error: storageError } = await supabase.storage
+          .from("cv-uploads")
+          .remove([archive.file_url]);
+
+        if (storageError) {
+          throw storageError;
+        }
+      } catch (storageError) {
+        console.warn(
+          `Warning: Failed to delete CV file from storage for cv ${cvId}:`,
+          storageError,
+        );
+      }
+    }
+
+    const deletedArchive = await cvRepository.deleteCvArchiveById(cvId, userId);
+    if (!deletedArchive) {
+      throw new Error("CV archive not found");
+    }
+
+    return deletedArchive;
+  } catch (error) {
+    console.error(`Error deleting CV archive ${cvId}:`, error);
+    throw error;
+  }
 }

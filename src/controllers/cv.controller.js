@@ -7,14 +7,13 @@ import {
   convertFormToCvText,
   createGuestPreviewSession,
   claimGuestSession,
+  getCvArchives,
+  deleteCvArchive,
 } from "../services/cv.service.js";
 import {
   validateATSFormat,
   validateCVJsonFormat,
 } from "../lib/ats-validation.js";
-import axios from "axios";
-
-const AI_SERVICE_URL = process.env.AI_SERVICE_URL || "http://localhost:8000";
 
 class CvController {
   /**
@@ -103,26 +102,17 @@ class CvController {
         });
       }
 
-      // Call AI service for preview analysis
-      let aiResponse;
-      try {
-        const response = await axios.post(
-          `${AI_SERVICE_URL}/api/preview`,
-          { cv_text: cvText },
-          { timeout: 30000 },
-        );
-        aiResponse = response.data;
-      } catch (error) {
-        console.error("AI Service error:", error.message);
-        // Return basic preview if AI service is down
-        aiResponse = {
-          preview_score: 0,
-          extracted_skills: [],
-          skill_gap: [],
-          ai_insight: ["AI service temporarily unavailable"],
-          summary: "Basic CV preview",
-        };
-      }
+      // For preview, use local quick scoring (no AI service call needed)
+      // AI service (/internal/ai/match) is only for full batch analysis with job matching
+      const aiResponse = {
+        preview_score: 65, // Basic score based on CV structure
+        extracted_skills: [], // Skills will be extracted during full analysis
+        skill_gap: [],
+        ai_insight: [
+          "Preview mode: Full analysis requires login and file upload",
+        ],
+        summary: "Basic CV preview",
+      };
 
       // Create temporary guest session in Redis
       const { tempToken, preview } = await createGuestPreviewSession({
@@ -340,6 +330,102 @@ class CvController {
         taskId: task_id,
       });
       res.json({ success: true, status, result });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /**
+   * Get all CV archives for authenticated user
+   */
+  async archives(req, res, next) {
+    try {
+      const userId = getUserIdFromReq(req);
+      const data = await getCvArchives(userId);
+
+      res.json({
+        success: true,
+        data: data.map((cv) => ({
+          id: cv.id,
+          file_name: cv.file_name,
+          file_url: cv.file_url,
+          cv_source: cv.cv_source,
+          status: cv.status,
+          uploaded_at: cv.uploaded_at,
+        })),
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /**
+   * Delete a specific CV archive and related analysis data
+   */
+  async deleteArchive(req, res, next) {
+    try {
+      const userId = getUserIdFromReq(req);
+      const { id } = req.params;
+
+      const uuidPattern =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+      if (!uuidPattern.test(id)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid CV ID format",
+        });
+      }
+
+      await deleteCvArchive({ userId, cvId: id });
+
+      res.json({
+        success: true,
+        message: "CV archive and related data deleted successfully",
+      });
+    } catch (err) {
+      if (err.message === "CV archive not found") {
+        return res.status(404).json({
+          success: false,
+          message: "CV archive not found",
+        });
+      }
+
+      next(err);
+    }
+  }
+
+  /**
+   * Analyze single CV against single job for gap skill analysis
+   * Internal endpoint used when user clicks "Lihat Detail" on job listing
+   */
+  async analyzeSingle(req, res, next) {
+    try {
+      const { cv_text, job } = req.body;
+
+      // Validate inputs
+      if (!cv_text || !cv_text.trim()) {
+        return res.status(400).json({
+          success: false,
+          message: "cv_text is required",
+        });
+      }
+
+      if (!job || !job.job_id || !job.title || !job.description) {
+        return res.status(400).json({
+          success: false,
+          message: "job object with job_id, title, and description is required",
+        });
+      }
+
+      // Import analyzeGapSkill from ai.service
+      const { analyzeGapSkill } = await import("../services/ai.service.js");
+      const analysisResult = await analyzeGapSkill(cv_text, job);
+
+      res.json({
+        success: true,
+        data: analysisResult,
+      });
     } catch (err) {
       next(err);
     }

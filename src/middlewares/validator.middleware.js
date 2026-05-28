@@ -28,18 +28,36 @@ export const validatePagination = (req, res, next) => {
     });
   }
 
-  req.query = value;
+  req.validatedQuery = value;
   next();
 };
 
 export const validateUserUpdate = (req, res, next) => {
+  // Filter out empty strings to allow partial updates
+  const cleanBody = Object.fromEntries(
+    Object.entries(req.body).filter(
+      ([, value]) => value !== "" && value !== null && value !== undefined,
+    ),
+  );
+
   const schema = Joi.object({
     name: Joi.string().max(255).optional(),
     gender: Joi.string().valid("male", "female", "other").optional(),
     avatar_url: Joi.string().uri().optional(),
+    birth_date: Joi.date().iso().optional(),
+    education_level: Joi.string()
+      .valid("SMA", "D3", "S1", "S2", "S3")
+      .optional(),
+    experience_level: Joi.string().valid("junior", "mid", "senior").optional(),
+    city: Joi.string().max(255).optional(),
+    province: Joi.string().max(255).optional(),
+    min_salary_expect: Joi.number().integer().min(0).optional(),
+    max_salary_expect: Joi.number().integer().min(0).optional(),
+    bio: Joi.string().max(1000).optional(),
+    skills_overview: Joi.string().max(1000).optional(),
   });
 
-  const { error, value } = schema.validate(req.body);
+  const { error, value } = schema.validate(cleanBody);
   if (error) {
     return res.status(400).json({
       success: false,

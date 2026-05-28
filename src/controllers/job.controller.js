@@ -89,11 +89,32 @@ class JobController {
     }
   }
 
-  // Endpoint: GET /api/v1/jobs/recommendations
   async recommendations(req, res, next) {
     try {
       const userId = req.user?.id;
-      const data = await recommendationService.getTopRecommendations(userId);
+      const { cv_id } = req.query;
+
+      if (!cv_id) {
+        return res.status(400).json({
+          success: false,
+          message: "cv_id query parameter is required",
+        });
+      }
+
+      const uuidPattern =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+      if (!uuidPattern.test(cv_id)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid cv_id format",
+        });
+      }
+
+      const data = await recommendationService.getTopRecommendations(
+        userId,
+        cv_id,
+      );
       res.json({ success: true, data });
     } catch (err) {
       next(err);

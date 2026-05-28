@@ -14,9 +14,20 @@ const router = express.Router();
  *       - bearerAuth: []
  *     description: |
  *       Retrieve the top 20 job recommendations most relevant to the authenticated user's CV.
+ *       Requires a specific CV using the `cv_id` query parameter.
  *       Results are sorted by match score in descending order.
  *       Requires that the user has completed a prior CV analysis.
+ *     parameters:
+ *       - in: query
+ *         name: cv_id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: CV ID to scope recommendations to a specific uploaded CV
  *     responses:
+ *       400:
+ *         description: Missing or invalid cv_id
  *       200:
  *         description: List of recommended jobs with match analysis
  *         content:
@@ -58,6 +69,7 @@ const router = express.Router();
  *       401:
  *         $ref: '#/components/responses/UnauthorizedError'
  */
+
 router.get("/recommendations", authenticate, jobController.recommendations);
 
 export default router;

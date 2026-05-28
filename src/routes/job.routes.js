@@ -13,6 +13,7 @@ const router = express.Router();
  *   get:
  *     summary: Get All Jobs
  *     tags: [Jobs]
+ *     security: []
  *     description: Retrieve a list of all available jobs with pagination and general filters.
  *     parameters:
  *       - in: query
@@ -184,6 +185,7 @@ const router = express.Router();
  *   get:
  *     summary: Get Job Details by ID
  *     tags: [Jobs]
+ *     security: []
  *     description: Retrieve detailed information about a specific job listing by its unique UUID.
  *     parameters:
  *       - in: path

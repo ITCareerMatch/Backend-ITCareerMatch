@@ -64,7 +64,7 @@ class CvRepository {
   async updateCvArchiveStatus(id, status) {
     const query = `
       UPDATE cv_archives
-      SET status = $1, updated_at = NOW()
+      SET status = $1
       WHERE id = $2
       RETURNING id, user_id, file_url, file_name, raw_text, cv_source, status, uploaded_at
     `;
@@ -74,7 +74,6 @@ class CvRepository {
 
   // Save extracted skills from CV
   async saveCvSkills(cvId, skills) {
-    // skills format: [{ skill_id, confidence }, ...]
     const query = `
       INSERT INTO cv_skills (cv_id, skill_id, confidence)
       VALUES ${skills.map((_, i) => `($1, $${i * 2 + 2}, $${i * 2 + 3})`).join(", ")}
@@ -125,6 +124,119 @@ class CvRepository {
     `;
     const { rows } = await pool.query(query, [userId]);
     return rows;
+  }
+
+  // Delete CV archive and related analysis data in one transaction
+  async deleteCvArchiveById(id, userId) {
+    await pool.query("BEGIN");
+
+    try {
+      const { rows: archiveRows } = await pool.query(
+        `
+        SELECT id, user_id, file_url
+        FROM cv_archives
+        WHERE id = $1 AND user_id = $2
+        FOR UPDATE
+        `,
+        [id, userId],
+      );
+
+      const archive = archiveRows[0];
+      if (!archive) {
+        await pool.query("ROLLBACK");
+        return null;
+      }
+
+      await pool.query(
+        `
+        DELETE FROM analysis_details
+        WHERE analysis_id IN (
+          SELECT id FROM analysis_history
+          WHERE cv_id = $1 AND user_id = $2
+        )
+        `,
+        [id, userId],
+      );
+
+      await pool.query(
+        `
+        DELETE FROM analysis_history
+        WHERE cv_id = $1 AND user_id = $2
+        `,
+        [id, userId],
+      );
+
+      await pool.query(
+        `
+        DELETE FROM cv_skills
+        WHERE cv_id = $1
+        `,
+        [id],
+      );
+
+      await pool.query(
+        `
+        DELETE FROM cv_archives
+        WHERE id = $1 AND user_id = $2
+        `,
+        [id, userId],
+      );
+
+      await pool.query("COMMIT");
+      return archive;
+    } catch (error) {
+      await pool.query("ROLLBACK");
+      throw error;
+    }
+  }
+
+  async deleteCvDataByUserId(userId) {
+    await pool.query("BEGIN");
+
+    try {
+      await pool.query(
+        `
+        DELETE FROM analysis_details
+        WHERE analysis_id IN (
+          SELECT id FROM analysis_history
+          WHERE user_id = $1
+        )
+        `,
+        [userId],
+      );
+
+      await pool.query(
+        `
+        DELETE FROM analysis_history
+        WHERE user_id = $1
+        `,
+        [userId],
+      );
+
+      await pool.query(
+        `
+        DELETE FROM cv_skills
+        WHERE cv_id IN (
+          SELECT id FROM cv_archives
+          WHERE user_id = $1
+        )
+        `,
+        [userId],
+      );
+
+      await pool.query(
+        `
+        DELETE FROM cv_archives
+        WHERE user_id = $1
+        `,
+        [userId],
+      );
+
+      await pool.query("COMMIT");
+    } catch (error) {
+      await pool.query("ROLLBACK");
+      throw error;
+    }
   }
 }
 

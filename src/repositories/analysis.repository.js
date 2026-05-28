@@ -32,12 +32,16 @@ class AnalysisRepository {
 
   // Create analysis details (skill match/gap)
   async createAnalysisDetails(analysisId, details) {
-    // details format: [{ skill_id, skill_name_snapshot, status, ai_insight }, ...]
     if (!details || details.length === 0) return;
 
     const query = `
       INSERT INTO analysis_details (id, analysis_id, skill_id, skill_name_snapshot, status, ai_insight)
-      VALUES ${details.map((_, i) => `($${i * 5 + 1}, $${i * 5 + 2}, $${i * 5 + 3}, $${i * 5 + 4}, $${i * 5 + 5}, $${i * 5 + 6})`).join(", ")}
+      VALUES ${details
+        .map(
+          (_, i) =>
+            `($${i * 6 + 1}, $${i * 6 + 2}, $${i * 6 + 3}, $${i * 6 + 4}, $${i * 6 + 5}, $${i * 6 + 6})`,
+        )
+        .join(", ")}
     `;
 
     const values = [];
@@ -110,7 +114,7 @@ class AnalysisRepository {
   }
 
   // Get top recommendations for user (Top-20 jobs with highest match scores)
-  async getTopRecommendations(userId, limit = 20) {
+  async getTopRecommendations(userId, cvId, limit = 20) {
     const query = `
       SELECT 
         ah.id as analysis_id,
@@ -127,11 +131,14 @@ class AnalysisRepository {
       JOIN jobs j ON j.id = ah.job_id
       LEFT JOIN analysis_details ad ON ad.analysis_id = ah.id
       WHERE ah.user_id = $1
+      AND ah.cv_id = $2
       GROUP BY ah.id, ah.job_id, ah.match_score, ah.job_title_snapshot, ah.company_snapshot, ah.analyzed_at, j.external_url, j.location
       ORDER BY ah.match_score DESC
-      LIMIT $2
+      LIMIT $3
     `;
-    const { rows } = await pool.query(query, [userId, limit]);
+
+    const values = [userId, cvId, limit];
+    const { rows } = await pool.query(query, values);
     return rows;
   }
 }

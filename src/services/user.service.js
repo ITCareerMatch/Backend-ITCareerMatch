@@ -1,5 +1,7 @@
 import userRepository from "../repositories/user.repository.js";
+import cvRepository from "../repositories/cv.repository.js";
 import { supabase } from "../lib/supabase.js";
+import { cleanupUserQueueJobs } from "../lib/queue.js";
 
 class UserService {
   async getUserById(id) {
@@ -46,11 +48,67 @@ class UserService {
   }
 
   async deleteUserById(id) {
-    const { error } = await supabase.auth.admin.deleteUser(id);
+    const user = await userRepository.findById(id);
+    const cvArchives = await cvRepository.getCvArchivesByUserId(id);
 
-    if (error) {
+    if (user?.avatar_url) {
+      try {
+        const avatarPath = user.avatar_url.split(
+          "/storage/v1/object/public/avatars/",
+        )[1];
+        if (avatarPath) {
+          await supabase.storage.from("avatars").remove([avatarPath]);
+          console.log(`✓ Deleted avatar for user ${id}`);
+        }
+      } catch (storageError) {
+        console.error(
+          `Warning: Failed to delete avatar for user ${id}:`,
+          storageError,
+        );
+      }
+    }
+
+    for (const cv of cvArchives) {
+      if (!cv?.file_url) {
+        continue;
+      }
+
+      try {
+        const { error: cvStorageError } = await supabase.storage
+          .from("cv-uploads")
+          .remove([cv.file_url]);
+
+        if (cvStorageError) {
+          throw cvStorageError;
+        }
+
+        console.log(`✓ Deleted CV file for user ${id}, cv ${cv.id}`);
+      } catch (storageError) {
+        console.error(
+          `Warning: Failed to delete CV file for user ${id}, cv ${cv.id}:`,
+          storageError,
+        );
+      }
+    }
+
+    try {
+      await cleanupUserQueueJobs(
+        id,
+        cvArchives.map((cv) => cv.id),
+      );
+    } catch (queueError) {
+      console.error(
+        `Warning: Failed to clean queue jobs for user ${id}:`,
+        queueError,
+      );
+    }
+
+    await cvRepository.deleteCvDataByUserId(id);
+    const { error: authError } = await supabase.auth.admin.deleteUser(id);
+
+    if (authError) {
       throw new Error(
-        `Failed to delete user from Supabase Auth: ${error.message}`,
+        `Failed to delete user from Supabase Auth: ${authError.message}`,
       );
     }
 

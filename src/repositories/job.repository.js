@@ -41,34 +41,46 @@ class JobRepository {
 
     if (minAge !== undefined) {
       values.push(minAge);
-      baseWhere += ` AND (j.min_age IS NULL OR j.min_age >= $${values.length})`;
+      baseWhere += ` AND (j.min_age IS NULL OR j.min_age <= $${values.length})`;
     }
 
     if (maxAge !== undefined) {
       values.push(maxAge);
-      baseWhere += ` AND (j.max_age IS NULL OR j.max_age <= $${values.length})`;
+      baseWhere += ` AND (j.max_age IS NULL OR j.max_age >= $${values.length})`;
     }
 
-    // Education: translate dari enum key ke nilai DB
     if (education_level) {
-      const dbValue = EDUCATION_LEVEL_MAP[education_level.toLowerCase()];
-      if (dbValue) {
-        values.push(dbValue);
-        baseWhere += ` AND j.education_level = $${values.length}`;
-      }
+      const educationHierarchy = {
+        sma: 1,
+        d3: 2,
+        s1: 3,
+        s2: 4,
+      };
+
+      const userEducationLevel =
+        educationHierarchy[education_level.toLowerCase()] || 0;
+
+      values.push(userEducationLevel);
+      const educationParamIdx = values.length;
+
+      baseWhere += ` AND (
+        j.education_level = 'terbuka untuk semua jenjang dan jurusan' OR
+        (CASE 
+          WHEN j.education_level = 'Minimal SMA/SMK' THEN 1
+          WHEN j.education_level = 'Minimal Diploma (D1 - D4)' THEN 2
+          WHEN j.education_level = 'Minimal Sarjana (S1)' THEN 3
+          WHEN j.education_level = 'Minimal Pasca Sarjana (S2)' THEN 4
+          ELSE 0
+        END) <= $${educationParamIdx}
+      )`;
     }
 
-    // Gender
     if (gender) {
-      const genderMap = {
-        "laki-laki": "Laki-laki saja",
-        perempuan: "Perempuan saja",
-        semua: "tanpa ketentuan",
-      };
-      const dbGender = genderMap[gender.toLowerCase()];
-      if (dbGender) {
-        values.push(dbGender);
-        baseWhere += ` AND j.gender_required = $${values.length}`;
+      const genderLower = gender.toLowerCase();
+      if (genderLower === "laki-laki") {
+        baseWhere += ` AND (j.gender_required = 'Laki-laki saja' OR j.gender_required = 'tanpa ketentuan')`;
+      } else if (genderLower === "perempuan") {
+        baseWhere += ` AND (j.gender_required = 'Perempuan saja' OR j.gender_required = 'tanpa ketentuan')`;
       }
     }
 
@@ -105,12 +117,8 @@ class JobRepository {
     const countResult = await pool.query(countQuery, values);
     const total = Number(countResult.rows[0].count);
 
-    // PAGINATION
     const offset = (page - 1) * limit;
-    values.push(limit);
-    const limitIdx = values.length;
-    values.push(offset);
-    const offsetIdx = values.length;
+    const selectValues = [...values, limit, offset];
 
     const mainQuery = `
       SELECT 
@@ -130,10 +138,10 @@ class JobRepository {
       FROM jobs j
       ${baseWhere}
       ORDER BY j.created_at DESC
-      LIMIT $${limitIdx} OFFSET $${offsetIdx}
+      LIMIT $${selectValues.length - 1} OFFSET $${selectValues.length}
     `;
 
-    const data = await pool.query(mainQuery, values);
+    const data = await pool.query(mainQuery, selectValues);
 
     return {
       data: data.rows,

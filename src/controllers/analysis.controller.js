@@ -5,7 +5,7 @@ class AnalysisController {
   async history(req, res, next) {
     try {
       const userId = req.user?.id;
-      const { page = 1, limit = 10 } = req.query;
+      const { page = 1, limit = 10 } = req.validatedQuery ?? req.query;
 
       const pageNum = Math.max(1, parseInt(page));
       const limitNum = Math.min(100, Math.max(1, parseInt(limit)));

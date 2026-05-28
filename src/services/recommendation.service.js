@@ -1,10 +1,10 @@
 import analysisRepository from "../repositories/analysis.repository.js";
 
 class RecommendationService {
-  async getTopRecommendations(userId, limit = 20) {
-    // Get Top-20 jobs from analysis_history with highest match_score
+  async getTopRecommendations(userId, cvId, limit = 20) {
     const recommendations = await analysisRepository.getTopRecommendations(
       userId,
+      cvId,
       limit,
     );
 
@@ -24,8 +24,6 @@ class RecommendationService {
   }
 
   async getRecommendationDetail(analysisId) {
-    // Get full detail including skill breakdown
-    // This should be called via analysis service
     return null;
   }
 }

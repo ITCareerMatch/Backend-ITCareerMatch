@@ -2,6 +2,7 @@ import express from "express";
 import cvController from "../controllers/cv.controller.js";
 import { authenticate } from "../middlewares/auth.middleware.js";
 import { uploadCv } from "../middlewares/upload.middleware.js";
+import { internalOnly } from "../middlewares/internal.middleware.js";
 
 const router = express.Router();
 
@@ -11,6 +12,7 @@ const router = express.Router();
  *   post:
  *     summary: Preview CV (Guest or Manual Input)
  *     tags: [CV]
+ *     security: []
  *     description: |
  *       Upload a PDF or submit manual CV input as a guest user for quick preview.
  *       No data is saved to the database. Results are stored temporarily in Redis (TTL 30 minutes).
@@ -231,6 +233,172 @@ const router = express.Router();
  *         $ref: '#/components/responses/NotFoundError'
  */
 
+/**
+ * @swagger
+ * /api/v1/cv/archives:
+ *   get:
+ *     summary: Get User CV Archives
+ *     tags: [CV]
+ *     security:
+ *       - bearerAuth: []
+ *     description: Retrieve all CV archives for the authenticated user so the frontend can select a specific cv_id for recommendations.
+ *     responses:
+ *       200:
+ *         description: CV archives retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                         format: uuid
+ *                       file_name:
+ *                         type: string
+ *                         nullable: true
+ *                       file_url:
+ *                         type: string
+ *                         nullable: true
+ *                       cv_source:
+ *                         type: string
+ *                       status:
+ *                         type: string
+ *                       uploaded_at:
+ *                         type: string
+ *                         format: date-time
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ */
+
+/**
+ * @swagger
+ * /api/v1/cv/archives/{id}:
+ *   delete:
+ *     summary: Delete a CV Archive
+ *     tags: [CV]
+ *     security:
+ *       - bearerAuth: []
+ *     description: Delete a specific CV archive, its uploaded file in storage, and all related analysis data.
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: CV archive ID
+ *     responses:
+ *       200:
+ *         description: CV archive deleted successfully
+ *       400:
+ *         $ref: '#/components/responses/BadRequestError'
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       404:
+ *         description: CV archive not found
+ */
+
+/**
+ * @swagger
+ * /api/v1/cv/analyze-single:
+ *   post:
+ *     summary: Analyze single CV against single job (Internal Endpoint)
+ *     tags: [CV]
+ *     security:
+ *       - internalApiKey: []
+ *     description: |
+ *       Internal endpoint for analyzing a single CV against a single job.
+ *       Used when user clicks "Lihat Detail" on job listing to get gap skill analysis.
+ *       Requires internal API authentication.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - cv_text
+ *               - job
+ *             properties:
+ *               cv_text:
+ *                 type: string
+ *                 description: Raw CV text from parsing
+ *                 example: "John Doe\nSkills: Python, JavaScript\nExperience: 5 years"
+ *               job:
+ *                 type: object
+ *                 required:
+ *                   - job_id
+ *                   - title
+ *                   - description
+ *                 properties:
+ *                   job_id:
+ *                     type: string
+ *                     example: "job-001"
+ *                   title:
+ *                     type: string
+ *                     example: "Backend Developer"
+ *                   company_name:
+ *                     type: string
+ *                     example: "PT Tech Indonesia"
+ *                   description:
+ *                     type: string
+ *                     example: "Requirements: Node.js, SQL, Docker"
+ *     responses:
+ *       200:
+ *         description: Gap skill analysis completed successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     extracted_skills:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *                       example: ["Python", "JavaScript"]
+ *                     analysis:
+ *                       type: object
+ *                       properties:
+ *                         job_id:
+ *                           type: string
+ *                         job_title:
+ *                           type: string
+ *                         company:
+ *                           type: string
+ *                         match_score:
+ *                           type: number
+ *                           format: float
+ *                           example: 85.50
+ *                         skill_match:
+ *                           type: array
+ *                           items:
+ *                             type: string
+ *                         skill_gap:
+ *                           type: array
+ *                           items:
+ *                             type: string
+ *                         ai_insight:
+ *                           type: string
+ *       400:
+ *         $ref: '#/components/responses/BadRequestError'
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ */
+
 // Public endpoint - guest preview (no auth required)
 router.post("/preview", uploadCv, cvController.preview);
 
@@ -238,5 +406,10 @@ router.post("/preview", uploadCv, cvController.preview);
 router.post("/analyze", authenticate, uploadCv, cvController.analyze);
 router.post("/claim", authenticate, cvController.claim);
 router.get("/status/:task_id", authenticate, cvController.status);
+router.get("/archives", authenticate, cvController.archives);
+router.delete("/archives/:id", authenticate, cvController.deleteArchive);
+
+// Internal endpoint - gap skill analysis
+router.post("/analyze-single", internalOnly, cvController.analyzeSingle);
 
 export default router;
