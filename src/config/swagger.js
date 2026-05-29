@@ -3,12 +3,15 @@ import swaggerUi from "swagger-ui-express";
 
 let serverUrl;
 
-if (process.env.NODE_ENV === "production") {
-  const swaggerHost =
-    process.env.SWAGGER_HOST || "itcareermatch.up.railway.app";
-  const swaggerScheme = process.env.SWAGGER_SCHEME || "https";
-  serverUrl = `${swaggerScheme}://${swaggerHost}`;
-  console.log(`[Swagger] Production mode: ${serverUrl}`);
+const swaggerHost = process.env.SWAGGER_HOST;
+const swaggerScheme = process.env.SWAGGER_SCHEME;
+
+if (swaggerHost) {
+  serverUrl = `${swaggerScheme || "https"}://${swaggerHost}`;
+  console.log(`[Swagger] Using configured server URL: ${serverUrl}`);
+} else if (process.env.NODE_ENV === "production") {
+  serverUrl = "https://itcareermatch.up.railway.app";
+  console.log(`[Swagger] Production mode fallback: ${serverUrl}`);
 } else {
   const port = process.env.PORT || 3000;
   serverUrl = `http://localhost:${port}`;
@@ -33,10 +36,6 @@ const swaggerDefinition = {
         process.env.NODE_ENV === "development"
           ? "Development Server"
           : "Production Server",
-    },
-    {
-      url: `${serverUrl}/internal`,
-      description: "Internal API",
     },
   ],
   components: {
