@@ -12,6 +12,9 @@ const router = express.Router();
  *     tags: [Internal]
  *     security:
  *       - internalApiKey: []
+ *     description: |
+ *       Internal backend endpoint that only enqueues an AI matching job to BullMQ.
+ *       This is not a public API and should only be called by trusted backend services.
  *     requestBody:
  *       required: true
  *       content:

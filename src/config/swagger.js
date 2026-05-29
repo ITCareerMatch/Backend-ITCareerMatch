@@ -51,7 +51,8 @@ const swaggerDefinition = {
         type: "apiKey",
         in: "header",
         name: "x-internal-request",
-        description: "Internal service authentication header",
+        description:
+          "Internal service authentication header for backend-to-backend calls only. Do not use this from frontend or public clients.",
       },
     },
     responses: {

@@ -316,7 +316,8 @@ const router = express.Router();
  *       - internalApiKey: []
  *     description: |
  *       Internal endpoint for analyzing a single CV against a single job.
- *       Used when user clicks "Lihat Detail" on job listing to get gap skill analysis.
+ *       Used by backend services or worker jobs as a helper/fallback for single-job gap analysis.
+ *       Not meant to be called directly from frontend.
  *       Requires internal API authentication.
  *     requestBody:
  *       required: true
