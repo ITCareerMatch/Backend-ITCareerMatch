@@ -63,11 +63,11 @@ Frontend
 ### Detail lowongan / gap skill
 
 ```
-Frontend
-  -> POST /api/v1/cv/analyze-single
+Backend internal / worker
+  -> panggil endpoint internal backend /api/v1/cv/analyze-single
 Backend
   -> kirim cv_text + job ke AI Service /internal/ai/analyze-single
-  -> return analysis detail ke frontend
+  -> return analysis detail ke backend/worker yang memanggilnya
 ```
 
 ## 3. Peran Tiap Komponen
@@ -188,13 +188,13 @@ Kalau nanti ingin migrasi penuh ke timezone-aware, langkah yang lebih benar adal
 
 ### Internal backend
 
-- `POST /api/v1/cv/analyze-single`
-- `POST /internal/ai/match` untuk helper internal di backend
+- `POST /api/v1/cv/analyze-single` untuk kebutuhan internal backend saja, dipakai service backend/worker sebagai helper atau fallback detail skill
+- `POST /internal/ai/match` untuk trigger internal backend yang memasukkan job ke queue BullMQ
 
 ### Internal AI service di Railway
 
-- `POST /internal/ai/match`
-- `POST /internal/ai/analyze-single`
+- `POST /internal/ai/match` untuk proses matching AI batch yang dipanggil worker backend
+- `POST /internal/ai/analyze-single` untuk proses gap analysis satu job
 
 ## 7. Contract AI yang Final
 
@@ -337,10 +337,11 @@ Flow yang dianggap final saat ini:
 
 ### D. Detail lowongan
 
-1. User klik detail lowongan.
-2. Frontend memanggil `POST /api/v1/cv/analyze-single`.
-3. Backend meneruskan `cv_text` dan `job` ke AI Railway.
-4. AI mengembalikan `skill_match`, `skill_gap`, dan `ai_insight`.
+1. User klik detail lowongan di frontend.
+2. Jika backend perlu analisis gap skill satu lowongan, service backend memanggil `POST /api/v1/cv/analyze-single` secara internal.
+3. Endpoint internal backend memvalidasi `cv_text` dan `job`, lalu meneruskan payload ke AI Railway lewat `POST /internal/ai/analyze-single`.
+4. AI mengembalikan `skill_match`, `skill_gap`, `ai_insight`, dan `match_score`.
+5. Backend meneruskan hasil itu ke caller internal yang meminta analisis detail.
 
 ### E. Daftar dan hapus CV
 
@@ -374,15 +375,16 @@ Flow yang dianggap final saat ini:
 | `GET /api/v1/analysis/:id`         | `analysis_history`, `analysis_details`, `skills`                                            |
 | `GET /api/v1/user/profile`         | `users`                                                                                     |
 | `DELETE /api/v1/user/profile`      | `users`, `cv_archives`, `cv_skills`, `analysis_history`, `analysis_details`, storage, queue |
-| `POST /api/v1/cv/analyze-single`   | AI Railway, respons detail analisis                                                         |
+| `POST /api/v1/cv/analyze-single`   | Internal backend only; helper/fallback untuk gap skill satu job, lalu proxy ke AI Railway   |
 
 ## 13. Authentication dan Security
 
 - User login memakai Supabase Auth.
 - Backend memverifikasi JWT lewat middleware `authenticate`.
 - Route protected tidak boleh dipanggil tanpa access token user.
-- Route internal AI diproteksi dengan `internalOnly`.
+- Route internal backend diproteksi dengan `internalOnly`.
 - Backend mengirim header internal ke AI service agar request tidak dibuka ke publik.
+- Path `/internal/ai/match` ada di backend dan AI service, tetapi fungsinya berbeda: backend untuk enqueue job, AI service untuk eksekusi matching.
 - Guest flow tidak memakai JWT, hanya `temp_token` sementara dari Redis.
 
 ## 14. Workflow Tim
