@@ -14,9 +14,12 @@ import {
  * @returns {String} Structured CV text
  */
 export function convertFormToCvText(formData) {
+  if (formData.text && typeof formData.text === "string") {
+    return formData.text;
+  }
+
   const parts = [];
 
-  // Header section
   if (formData.name) {
     parts.push(`NAMA LENGKAP: ${formData.name}`);
   }
@@ -78,13 +81,11 @@ export function convertFormToCvText(formData) {
     }
   }
 
-  // Summary section
   if (formData.summary) {
     parts.push("=== RINGKASAN PROFESIONAL ===");
     parts.push(formData.summary);
   }
 
-  // Combine all parts with proper spacing
   const result = parts.join("\n");
 
   return result;
@@ -105,13 +106,11 @@ export async function saveCvArchive({
     let fileUrl = null;
     let fileName = null;
 
-    // Upload file to Supabase Storage only if provided
     if (file) {
       fileUrl = await cvRepository.uploadToSupabase(file);
       fileName = file.originalname;
     }
 
-    // Save metadata to DB
     return cvRepository.saveCvArchive({
       userId,
       fileName,
@@ -133,7 +132,6 @@ export async function saveCvArchive({
  */
 export async function createAnalysisTask({ userId, cvId, cvText }) {
   try {
-    // Add to queue, return taskId
     const taskId = await addTaskToQueue({
       taskId: uuidv4(),
       userId,
@@ -173,7 +171,6 @@ export async function getTaskStatusAndResult({ userId, taskId }) {
  */
 export async function createGuestPreviewSession({ cvText, aiResponse }) {
   try {
-    // Create temporary session in Redis (TTL 30 minutes)
     const tempToken = await createGuestSession({
       raw_text: cvText,
       extracted_skills: aiResponse.extracted_skills || [],
@@ -215,21 +212,19 @@ export async function claimGuestSession({ userId, tempToken }) {
     // Save CV to permanent storage
     const cvArchive = await cvRepository.saveCvArchive({
       userId,
-      fileName: null, // No file for manual input in preview
+      fileName: null,
       fileUrl: null,
       rawText: session.raw_text,
       cvSource: "preview_upgrade",
       status: "processing",
     });
 
-    // Create full analysis task
     const taskId = await createAnalysisTask({
       userId,
       cvId: cvArchive.id,
       cvText: session.raw_text,
     });
 
-    // Delete session after claim
     await deleteGuestSession(tempToken);
 
     return taskId;
@@ -240,7 +235,6 @@ export async function claimGuestSession({ userId, tempToken }) {
 }
 
 export function getUserIdFromReq(req) {
-  // Assume req.user injected by auth middleware
   return req.user?.id;
 }
 

@@ -30,8 +30,11 @@ const router = express.Router();
  *                 description: PDF file to upload (max 1 MB, text-based PDF only) - OR use cv_data below
  *               cv_data:
  *                 type: string
- *                 description: JSON stringified manual CV data - OR use file above
- *                 example: '{"name":"John Doe","email":"john@example.com","skills":"Python, SQL"}'
+ *                 description: |
+ *                   JSON stringified CV data. Supports two formats:
+ *                   1. Raw text: `{"text": "Pengalaman Kerja:\n..."}`
+ *                   2. Structured form: `{"name":"John","email":"john@example.com","skills":"Python, SQL"}`
+ *                 example: '{"text":"Pengalaman Kerja:\n1. Web Developer di PT Angin Ribut\nSkills: React, Node.js, PostgreSQL"}'
  *     responses:
  *       200:
  *         description: CV preview processed successfully
@@ -52,8 +55,8 @@ const router = express.Router();
  *                   properties:
  *                     score:
  *                       type: number
- *                       description: Match score (0-100)
- *                       example: 75
+ *                       description: "ATS Completeness Score (0-100). Calculated from CV word count — NOT an AI job-matching score."
+ *                       example: 42
  *                     extracted_skills:
  *                       type: array
  *                       items:
@@ -101,8 +104,11 @@ const router = express.Router();
  *                 description: PDF file to upload (max 1 MB, text-based PDF only) - OR use cv_data below
  *               cv_data:
  *                 type: string
- *                 description: JSON stringified manual CV data - OR use file above
- *                 example: '{"name":"John Doe","email":"john@example.com","skills":"Python, SQL"}'
+ *                 description: |
+ *                   JSON stringified CV data. Supports two formats:
+ *                   1. Raw text: `{"text": "Pengalaman Kerja:\n..."}`
+ *                   2. Structured form: `{"name":"John","email":"john@example.com","skills":"Python, SQL"}`
+ *                 example: '{"text":"Pengalaman Kerja:\n1. Web Developer di PT Angin Ribut\nSkills: React, Node.js, PostgreSQL"}'
  *     responses:
  *       200:
  *         description: CV uploaded successfully, analysis task created

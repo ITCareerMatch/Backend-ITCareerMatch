@@ -16,20 +16,13 @@ import {
 } from "../lib/ats-validation.js";
 
 class CvController {
-  /**
-   * Preview CV as guest (no DB save, temp session in Redis)
-   * Supports both file upload and manual form input
-   */
   async preview(req, res, next) {
     try {
       let cvText = null;
 
-      // Check if file upload or form input
       if (req.file) {
-        // File upload path
         const file = req.file;
 
-        // Parse PDF to text
         cvText = await parsePdfToText(file.buffer);
 
         if (!cvText || cvText.trim().length < 50) {
@@ -40,10 +33,8 @@ class CvController {
           });
         }
       } else if (req.body.cv_data) {
-        // Manual form input path - convert form to text
         let cvData = req.body.cv_data;
 
-        // DEBUG: Log what we receive
         if (typeof cvData === "string") {
           try {
             cvData = JSON.parse(cvData);
@@ -74,14 +65,18 @@ class CvController {
           });
         }
 
-        // Validate JSON CV format
-        try {
-          validateCVJsonFormat(cvData);
-        } catch (e) {
-          return res.status(400).json({
-            success: false,
-            message: "CV format tidak valid: " + e.message,
-          });
+        // Only validate structured JSON fields when frontend sends structured form
+        // (not when it sends raw text via { text: "..." })
+        const isRawTextMode = typeof cvData.text === "string";
+        if (!isRawTextMode) {
+          try {
+            validateCVJsonFormat(cvData);
+          } catch (e) {
+            return res.status(400).json({
+              success: false,
+              message: "CV format tidak valid: " + e.message,
+            });
+          }
         }
       } else {
         return res.status(400).json({
@@ -91,27 +86,43 @@ class CvController {
       }
 
       // Validate ATS format for all CVs (both file and manual input)
-      try {
-        const atsValidation = validateATSFormat(cvText);
-        console.log("✓ ATS Validation passed:", atsValidation);
-      } catch (e) {
-        return res.status(400).json({
-          success: false,
-          message: "CV format tidak sesuai ATS: " + e.message,
-          hint: "Pastikan CV dalam format text yang rapi dan terstruktur (bukan scanned image)",
-        });
+      const isRawText =
+        req.body.cv_data &&
+        (() => {
+          try {
+            const d =
+              typeof req.body.cv_data === "string"
+                ? JSON.parse(req.body.cv_data)
+                : req.body.cv_data;
+            return typeof d.text === "string";
+          } catch {
+            return false;
+          }
+        })();
+
+      if (!isRawText) {
+        try {
+          const atsValidation = validateATSFormat(cvText);
+          console.log("✓ ATS Validation passed:", atsValidation);
+        } catch (e) {
+          return res.status(400).json({
+            success: false,
+            message: "CV format tidak sesuai ATS: " + e.message,
+            hint: "Pastikan CV dalam format text yang rapi dan terstruktur (bukan scanned image)",
+          });
+        }
       }
 
-      // For preview, use local quick scoring (no AI service call needed)
       // AI service (/internal/ai/match) is only for full batch analysis with job matching
+      const previewData = await quickScorePreview(cvText);
       const aiResponse = {
-        preview_score: 65, // Basic score based on CV structure
-        extracted_skills: [], // Skills will be extracted during full analysis
+        preview_score: previewData.score,
+        extracted_skills: [],
         skill_gap: [],
         ai_insight: [
           "Preview mode: Full analysis requires login and file upload",
         ],
-        summary: "Basic CV preview",
+        summary: previewData.summary,
       };
 
       // Create temporary guest session in Redis
@@ -139,15 +150,12 @@ class CvController {
       const userId = getUserIdFromReq(req);
       let cvText = null;
 
-      // Check if file upload or form input
       if (req.file) {
-        // File upload path
         const file = req.file;
         console.log(
           `\n📄 FILE UPLOAD: ${file.originalname} (${file.size} bytes)`,
         );
 
-        // Parse PDF to text
         cvText = await parsePdfToText(file.buffer);
         console.log(`✓ Parsed text length: ${cvText?.length || 0} characters`);
 
@@ -160,7 +168,6 @@ class CvController {
           });
         }
 
-        // Validate ATS format
         try {
           const atsValidation = validateATSFormat(cvText);
           console.log("✓ ATS Validation passed:", atsValidation);
@@ -173,7 +180,6 @@ class CvController {
           });
         }
 
-        // Save to DB (cv_archives)
         console.log(
           `\n💾 Saving to database: userId=${userId}, cvText length=${cvText?.length || 0}`,
         );
@@ -187,7 +193,6 @@ class CvController {
           `✓ Saved to cv_archives: id=${cvArchive.id}, raw_text length=${cvArchive.raw_text?.length || 0}`,
         );
 
-        // Trigger async AI analysis (queue)
         const taskId = await createAnalysisTask({
           userId,
           cvId: cvArchive.id,
@@ -196,10 +201,8 @@ class CvController {
 
         return res.json({ success: true, task_id: taskId });
       } else if (req.body.cv_data) {
-        // Manual form input path
         let cvData = req.body.cv_data;
 
-        // Parse JSON string if it comes as string from multipart/form-data
         if (typeof cvData === "string") {
           try {
             cvData = JSON.parse(cvData);
@@ -234,29 +237,29 @@ class CvController {
           });
         }
 
-        // Validate JSON CV format
-        try {
-          validateCVJsonFormat(cvData);
-        } catch (e) {
-          return res.status(400).json({
-            success: false,
-            message: "CV format tidak valid: " + e.message,
-          });
+        const isRawTextMode = typeof cvData.text === "string";
+        if (!isRawTextMode) {
+          try {
+            validateCVJsonFormat(cvData);
+          } catch (e) {
+            return res.status(400).json({
+              success: false,
+              message: "CV format tidak valid: " + e.message,
+            });
+          }
+
+          try {
+            const atsValidation = validateATSFormat(cvText);
+            console.log("✓ ATS Validation passed:", atsValidation);
+          } catch (e) {
+            return res.status(400).json({
+              success: false,
+              message: "CV format tidak sesuai ATS: " + e.message,
+              hint: "Pastikan CV dalam format text yang rapi dan terstruktur (bukan scanned image)",
+            });
+          }
         }
 
-        // Validate ATS format
-        try {
-          const atsValidation = validateATSFormat(cvText);
-          console.log("✓ ATS Validation passed:", atsValidation);
-        } catch (e) {
-          return res.status(400).json({
-            success: false,
-            message: "CV format tidak sesuai ATS: " + e.message,
-            hint: "Pastikan CV dalam format text yang rapi dan terstruktur (bukan scanned image)",
-          });
-        }
-
-        // Save to DB (cv_archives) without file
         const cvArchive = await saveCvArchive({
           userId,
           file: null,
@@ -264,7 +267,6 @@ class CvController {
           cvSource: "manual",
         });
 
-        // Trigger async AI analysis (queue)
         const taskId = await createAnalysisTask({
           userId,
           cvId: cvArchive.id,
@@ -299,7 +301,6 @@ class CvController {
         });
       }
 
-      // Claim session and create full analysis task
       const taskId = await claimGuestSession({
         userId,
         tempToken: temp_token,
@@ -403,7 +404,6 @@ class CvController {
     try {
       const { cv_text, job } = req.body;
 
-      // Validate inputs
       if (!cv_text || !cv_text.trim()) {
         return res.status(400).json({
           success: false,
@@ -418,7 +418,6 @@ class CvController {
         });
       }
 
-      // Import analyzeGapSkill from ai.service
       const { analyzeGapSkill } = await import("../services/ai.service.js");
       const analysisResult = await analyzeGapSkill(cv_text, job);
 
