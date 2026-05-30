@@ -7,13 +7,13 @@ import recommendationRoutes from "./routes/recommendation.routes.js";
 import analysisRoutes from "./routes/analysis.routes.js";
 import { swaggerUi, swaggerSpec } from "./config/swagger.js";
 import aiRoutes from "./routes/ai.routes.js";
+import chatbotRoutes from "./routes/chatbot.routes.js";
 
 const app = express();
 
 // CORS Configuration
 const corsOptions = {
   origin: function (origin, callback) {
-    // Always allow no origin (mobile apps, curl requests, internal calls)
     if (!origin) return callback(null, true);
 
     // Development: allow all origins
@@ -66,6 +66,7 @@ app.use("/api/v1/jobs", recommendationRoutes);
 app.use("/api/v1/jobs", jobRoutes);
 app.use("/api/v1/user", userRoutes);
 app.use("/api/v1/analysis", analysisRoutes);
+app.use("/api/v1/chatbot", chatbotRoutes);
 
 // Internal endpoints (Backend & Worker only)
 app.use("/internal/ai", aiRoutes);
