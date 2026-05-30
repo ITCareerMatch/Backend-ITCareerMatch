@@ -1,18 +1,22 @@
 import analysisService from "../services/analysis.service.js";
 
 class AnalysisController {
-  // List all analysis history for user
   async history(req, res, next) {
     try {
       const userId = req.user?.id;
-      const { page = 1, limit = 10 } = req.validatedQuery ?? req.query;
+      const { page = 1, limit = 10, cvId } = req.validatedQuery ?? req.query;
 
       const pageNum = Math.max(1, parseInt(page));
       const limitNum = Math.min(100, Math.max(1, parseInt(limit)));
       const offset = (pageNum - 1) * limitNum;
 
-      const data = await analysisService.getHistory(userId, limitNum, offset);
-      const total = await analysisService.getHistoryCount(userId);
+      const data = await analysisService.getHistory(
+        userId,
+        limitNum,
+        offset,
+        cvId,
+      );
+      const total = await analysisService.getHistoryCount(userId, cvId);
 
       res.json({
         success: true,
@@ -28,7 +32,6 @@ class AnalysisController {
     }
   }
 
-  // Get detail for one analysis
   async detail(req, res, next) {
     try {
       const userId = req.user?.id;

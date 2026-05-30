@@ -2,7 +2,6 @@ import { v4 as uuidv4 } from "uuid";
 import pool from "../config/db.js";
 
 class AnalysisRepository {
-  // Create analysis history record
   async createAnalysisHistory({
     userId,
     cvId,
@@ -30,7 +29,6 @@ class AnalysisRepository {
     return rows[0];
   }
 
-  // Create analysis details (skill match/gap)
   async createAnalysisDetails(analysisId, details) {
     if (!details || details.length === 0) return;
 
@@ -59,27 +57,39 @@ class AnalysisRepository {
     await pool.query(query, values);
   }
 
-  // Get analysis history for user
-  async getAnalysisHistory(userId, limit = 100, offset = 0) {
-    const query = `
+  async getAnalysisHistory(userId, limit = 100, offset = 0, cvId = null) {
+    let query = `
       SELECT id, user_id, cv_id, job_id, match_score, job_title_snapshot, company_snapshot, analyzed_at
       FROM analysis_history
       WHERE user_id = $1
-      ORDER BY analyzed_at DESC
-      LIMIT $2 OFFSET $3
     `;
-    const { rows } = await pool.query(query, [userId, limit, offset]);
+    const values = [userId];
+
+    if (cvId) {
+      values.push(cvId);
+      query += ` AND cv_id = $2`;
+    }
+
+    query += ` ORDER BY analyzed_at DESC LIMIT $${values.length + 1} OFFSET $${values.length + 2}`;
+    values.push(limit, offset);
+
+    const { rows } = await pool.query(query, values);
     return rows;
   }
 
-  // Get analysis history count for user
-  async getAnalysisHistoryCount(userId) {
-    const query = `SELECT COUNT(*) FROM analysis_history WHERE user_id = $1`;
-    const { rows } = await pool.query(query, [userId]);
+  async getAnalysisHistoryCount(userId, cvId = null) {
+    let query = `SELECT COUNT(*) FROM analysis_history WHERE user_id = $1`;
+    const values = [userId];
+
+    if (cvId) {
+      values.push(cvId);
+      query += ` AND cv_id = $2`;
+    }
+
+    const { rows } = await pool.query(query, values);
     return parseInt(rows[0].count);
   }
 
-  // Get analysis detail by ID
   async getAnalysisById(analysisId) {
     const query = `
       SELECT id, user_id, cv_id, job_id, match_score, job_title_snapshot, company_snapshot, analyzed_at
@@ -90,7 +100,6 @@ class AnalysisRepository {
     return rows[0] || null;
   }
 
-  // Get analysis details (skills breakdown)
   async getAnalysisDetails(analysisId) {
     const query = `
       SELECT id, analysis_id, skill_id, skill_name_snapshot, status, ai_insight
@@ -102,7 +111,6 @@ class AnalysisRepository {
     return rows;
   }
 
-  // Check if analysis already exists for CV + Job combo
   async checkAnalysisExists(cvId, jobId) {
     const query = `
       SELECT id FROM analysis_history
@@ -113,7 +121,6 @@ class AnalysisRepository {
     return rows[0] || null;
   }
 
-  // Get top recommendations for user (Top-20 jobs with highest match scores)
   async getTopRecommendations(userId, cvId, limit = 20) {
     const query = `
       SELECT 

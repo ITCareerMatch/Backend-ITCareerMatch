@@ -23,8 +23,8 @@ class AnalysisService {
     return analysisRepository.createAnalysisDetails(analysisId, details);
   }
 
-  async getHistory(userId, limit = 100, offset = 0) {
-    return analysisRepository.getAnalysisHistory(userId, limit, offset);
+  async getHistory(userId, limit = 100, offset = 0, cvId = null) {
+    return analysisRepository.getAnalysisHistory(userId, limit, offset, cvId);
   }
 
   async getDetail(analysisId) {
@@ -43,8 +43,8 @@ class AnalysisService {
     return analysisRepository.checkAnalysisExists(cvId, jobId);
   }
 
-  async getHistoryCount(userId) {
-    return analysisRepository.getAnalysisHistoryCount(userId);
+  async getHistoryCount(userId, cvId = null) {
+    return analysisRepository.getAnalysisHistoryCount(userId, cvId);
   }
 }
 

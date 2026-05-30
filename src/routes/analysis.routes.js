@@ -30,6 +30,12 @@ const router = express.Router();
  *           type: integer
  *           format: int32
  *         description: Number of items per page
+ *       - in: query
+ *         name: cvId
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: "(Optional) Filter history by specific CV ID. If omitted, returns all history across all CVs."
  *     responses:
  *       200:
  *         description: Analysis history retrieved successfully
