@@ -167,11 +167,8 @@ export async function getTaskStatusAndResult({ userId, taskId }) {
 /**
  * Create guest preview session (temporary, no DB save)
  * If the guest uploaded a file, the file is first stored in Supabase storage
- * so the metadata can be persisted when the session is claimed.
- * @param {Object} params - AI service response data
- * @returns {Object} {tempToken, preview}
  */
-export async function createGuestPreviewSession({ cvText, aiResponse, file }) {
+export async function createGuestPreviewSession({ cvText, file }) {
   try {
     let fileUrl = null;
     let fileName = null;
@@ -183,24 +180,14 @@ export async function createGuestPreviewSession({ cvText, aiResponse, file }) {
 
     const tempToken = await createGuestSession({
       raw_text: cvText,
-      extracted_skills: aiResponse.extracted_skills || [],
-      skill_gap: aiResponse.skill_gap || [],
-      ai_insight: aiResponse.ai_insight || [],
-      preview_score: aiResponse.preview_score || 0,
       file_url: fileUrl,
       file_name: fileName,
     });
 
-    return {
-      tempToken,
-      preview: {
-        score: aiResponse.preview_score || 0,
-        extracted_skills: aiResponse.extracted_skills || [],
-        skill_gap: aiResponse.skill_gap || [],
-        ai_insight: aiResponse.ai_insight || [],
-        summary: aiResponse.summary || "CV preview processed successfully",
-      },
-    };
+    // Only return the temp token for the guest preview flow. All preview
+    // details (scores, skills, insights) are intentionally NOT persisted
+    // or returned for guest previews.
+    return { tempToken };
   } catch (error) {
     console.error("Error creating guest preview session:", error);
     throw error;
@@ -214,14 +201,12 @@ export async function createGuestPreviewSession({ cvText, aiResponse, file }) {
  */
 export async function claimGuestSession({ userId, tempToken }) {
   try {
-    // Get session from Redis
     const session = await getGuestSession(tempToken);
 
     if (!session) {
       throw new Error("Session expired or not found");
     }
 
-    // Save CV to permanent storage
     const cvArchive = await cvRepository.saveCvArchive({
       userId,
       fileName: session.file_name || null,

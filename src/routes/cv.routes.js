@@ -50,31 +50,6 @@ const router = express.Router();
  *                   type: string
  *                   format: uuid
  *                   description: Token to claim session after login (valid for 30 minutes)
- *                 preview:
- *                   type: object
- *                   properties:
- *                     score:
- *                       type: number
- *                       description: "ATS Completeness Score (0-100). Calculated from CV word count — NOT an AI job-matching score."
- *                       example: 42
- *                     extracted_skills:
- *                       type: array
- *                       items:
- *                         type: string
- *                       example: ["Python", "SQL"]
- *                     skill_gap:
- *                       type: array
- *                       items:
- *                         type: string
- *                       example: ["Docker", "Kubernetes"]
- *                     ai_insight:
- *                       type: array
- *                       items:
- *                         type: string
- *                       example: ["Your Python skills are strong", "Consider learning Docker"]
- *                     summary:
- *                       type: string
- *                       example: "Good CV with relevant IT skills"
  *       400:
  *         $ref: '#/components/responses/BadRequestError'
  */

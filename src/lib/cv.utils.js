@@ -1,8 +1,17 @@
 import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const currentDir = path.dirname(fileURLToPath(import.meta.url));
+const standardFontDataUrl = `${path.resolve(
+  currentDir,
+  "../../node_modules/pdfjs-dist/standard_fonts/",
+)}${path.sep}`;
 
 export const parsePdfToText = async (buffer) => {
   const pdf = await pdfjsLib.getDocument({
     data: new Uint8Array(buffer),
+    standardFontDataUrl,
   }).promise;
 
   let text = "";
@@ -19,14 +28,3 @@ export const parsePdfToText = async (buffer) => {
 
   return text;
 };
-
-export async function quickScorePreview(cvText) {
-  const wordCount = cvText.split(/\s+/).length;
-
-  const score = Math.min(100, Math.round(wordCount / 10 + Math.random() * 10));
-
-  return {
-    score,
-    summary: `CV contains ${wordCount} words. (Dummy preview)`,
-  };
-}

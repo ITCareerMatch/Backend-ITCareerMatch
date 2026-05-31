@@ -1,4 +1,4 @@
-import { parsePdfToText, quickScorePreview } from "../lib/cv.utils.js";
+import { parsePdfToText } from "../lib/cv.utils.js";
 import {
   saveCvArchive,
   createAnalysisTask,
@@ -113,30 +113,15 @@ class CvController {
         }
       }
 
-      // AI service (/internal/ai/match) is only for full batch analysis with job matching
-      const previewData = await quickScorePreview(cvText);
-      const aiResponse = {
-        preview_score: previewData.score,
-        extracted_skills: [],
-        skill_gap: [],
-        ai_insight: [
-          "Preview mode: Full analysis requires login and file upload",
-        ],
-        summary: previewData.summary,
-      };
-
-      // Create temporary guest session in Redis
-      const { tempToken, preview } = await createGuestPreviewSession({
+      // Create and store a temporary guest session (raw_text + file metadata).
+      // The guest preview must NOT expose any internal heuristics or AI outputs.
+      const { tempToken } = await createGuestPreviewSession({
         cvText,
-        aiResponse,
         file: req.file || null,
       });
 
-      res.json({
-        success: true,
-        temp_token: tempToken,
-        preview,
-      });
+      // Public response: only success and temp_token as requested.
+      return res.json({ success: true, temp_token: tempToken });
     } catch (err) {
       next(err);
     }

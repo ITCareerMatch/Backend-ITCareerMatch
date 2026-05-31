@@ -8,7 +8,6 @@ const SESSION_PREFIX = "session:";
 
 /**
  * Create a temporary guest session in Redis
- * @param {Object} sessionData - Data to store (raw_text, extracted_skills, skill_gap, ai_insight, preview_score)
  * @returns {String} temp_token
  */
 export async function createGuestSession(sessionData) {
