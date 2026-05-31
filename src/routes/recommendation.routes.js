@@ -8,15 +8,14 @@ const router = express.Router();
  * @swagger
  * /api/v1/jobs/recommendations:
  *   get:
- *     summary: Get Top-20 Job Recommendations
+ *     summary: Get top-20 job recommendations
  *     tags: [Recommendations]
  *     security:
  *       - bearerAuth: []
  *     description: |
- *       Retrieve the top 20 job recommendations most relevant to the authenticated user's CV.
- *       Requires a specific CV using the `cv_id` query parameter.
+ *       Retrieve the most relevant job recommendations for a specific CV.
  *       Results are sorted by match score in descending order.
- *       Requires that the user has completed a prior CV analysis.
+ *       The user must have completed at least one CV analysis first.
  *     parameters:
  *       - in: query
  *         name: cv_id
@@ -29,7 +28,7 @@ const router = express.Router();
  *       400:
  *         description: Missing or invalid cv_id
  *       200:
- *         description: List of recommended jobs with match analysis
+ *         description: Recommended jobs with match analysis
  *         content:
  *           application/json:
  *             schema:

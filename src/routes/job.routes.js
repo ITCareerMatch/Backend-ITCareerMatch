@@ -11,10 +11,10 @@ const router = express.Router();
  * @swagger
  * /api/v1/jobs:
  *   get:
- *     summary: Get All Jobs
+ *     summary: List jobs
  *     tags: [Jobs]
  *     security: []
- *     description: Retrieve a list of all available jobs with pagination and general filters.
+ *     description: Retrieve jobs with pagination and filter support.
  *     parameters:
  *       - in: query
  *         name: search
@@ -25,12 +25,12 @@ const router = express.Router();
  *         name: city
  *         schema:
  *           type: string
- *         description: Filter by city name (e.g., Jakarta)
+ *         description: Filter by city name (for example, Jakarta)
  *       - in: query
  *         name: province
  *         schema:
  *           type: string
- *         description: Filter by province name (e.g., "DI Yogyakarta")
+ *         description: Filter by province name (for example, DI Yogyakarta)
  *       - in: query
  *         name: minSalary
  *         schema:
@@ -56,25 +56,25 @@ const router = express.Router();
  *         schema:
  *           type: string
  *           enum: [sma, d3, s1, s2, semua]
- *         description: "Filter by education level"
+ *         description: Filter by education level
  *       - in: query
  *         name: gender
  *         schema:
  *           type: string
  *           enum: [laki-laki, perempuan, semua]
- *         description: "Filter by gender requirement"
+ *         description: Filter by gender requirement
  *       - in: query
  *         name: job_type
  *         schema:
  *           type: string
  *           enum: [penuh-waktu, kontrak, magang, paruh-waktu, freelance]
- *         description: "Filter by job type"
+ *         description: Filter by job type
  *       - in: query
  *         name: work_system
  *         schema:
  *           type: string
  *           enum: [di-kantor, remote, hybrid]
- *         description: "Filter by work system"
+ *         description: Filter by work system
  *       - in: query
  *         name: page
  *         schema:
@@ -87,7 +87,7 @@ const router = express.Router();
  *           default: 10
  *     responses:
  *       200:
- *         description: List of jobs retrieved successfully
+ *         description: Jobs retrieved successfully
  *         content:
  *           application/json:
  *             schema:
@@ -116,13 +116,13 @@ const router = express.Router();
  *                         example: "https://glints.com/id/opportunities/..."
  *                       city:
  *                         type: string
- *                         example: "Kab. Sleman"
+ *                         example: "Sleman Regency"
  *                       province:
  *                         type: string
  *                         example: "DI Yogyakarta"
  *                       location:
  *                         type: string
- *                         example: "Kab. Sleman, DI Yogyakarta"
+ *                         example: "Sleman Regency, DI Yogyakarta"
  *                       salary_raw:
  *                         type: string
  *                         example: "Rp2.200.000 - 3.000.000/Bulan"
@@ -141,22 +141,22 @@ const router = express.Router();
  *                         nullable: true
  *                       age_note:
  *                         type: string
- *                         example: "tanpa batasan usia"
+ *                         example: "No age limit"
  *                       education_level:
  *                         type: string
- *                         example: "Minimal SMA/SMK"
+ *                         example: "Minimum SMA/SMK"
  *                       gender_required:
  *                         type: string
- *                         example: "Laki-laki saja"
+ *                         example: "Male only"
  *                       job_type:
  *                         type: string
- *                         example: "Penuh Waktu"
+ *                         example: "Full-time"
  *                       work_system:
  *                         type: string
- *                         example: "Kerja di kantor"
+ *                         example: "On-site"
  *                       requirements:
  *                         type: string
- *                         example: "Kualifikasi :\nSMK/D3/S1 Ilmu komputer..."
+ *                         example: "Qualifications:\nSMK/D3/S1 Computer Science..."
  *                       created_at:
  *                         type: string
  *                         format: date-time
@@ -183,7 +183,7 @@ const router = express.Router();
  * @swagger
  * /api/v1/jobs/{id}:
  *   get:
- *     summary: Get Job Details by ID
+ *     summary: Get job details by ID
  *     tags: [Jobs]
  *     security: []
  *     description: Retrieve detailed information about a specific job listing by its unique UUID.
@@ -225,13 +225,13 @@ const router = express.Router();
  *                       example: "https://glints.com/id/opportunities/..."
  *                     city:
  *                       type: string
- *                       example: "Kab. Sleman"
+ *                       example: "Sleman Regency"
  *                     province:
  *                       type: string
  *                       example: "DI Yogyakarta"
  *                     location:
  *                       type: string
- *                       example: "Kab. Sleman, DI Yogyakarta"
+ *                       example: "Sleman Regency, DI Yogyakarta"
  *                     salary_raw:
  *                       type: string
  *                       example: "Rp2.200.000 - 3.000.000/Bulan"
@@ -252,22 +252,22 @@ const router = express.Router();
  *                       example: null
  *                     age_note:
  *                       type: string
- *                       example: "tanpa batasan usia"
+ *                       example: "No age limit"
  *                     education_level:
  *                       type: string
- *                       example: "Minimal SMA/SMK"
+ *                       example: "Minimum SMA/SMK"
  *                     gender_required:
  *                       type: string
- *                       example: "Laki-laki saja"
+ *                       example: "Male only"
  *                     job_type:
  *                       type: string
- *                       example: "Penuh Waktu"
+ *                       example: "Full-time"
  *                     work_system:
  *                       type: string
- *                       example: "Kerja di kantor"
+ *                       example: "On-site"
  *                     requirements:
  *                       type: string
- *                       example: "Kualifikasi :\nSMK/D3/S1 Ilmu komputer, manajemen informatika, sistem informasi\nMemiliki kemampuan dalam pemrograman PHP..."
+ *                       example: "Qualifications:\nSMK/D3/S1 Computer Science, Information Management, Information Systems\nHas programming skills in PHP..."
  *                     created_at:
  *                       type: string
  *                       format: date-time

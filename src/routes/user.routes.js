@@ -11,14 +11,14 @@ const upload = multer({ storage: multer.memoryStorage() });
  * @swagger
  * /api/v1/user/profile:
  *   get:
- *     summary: Get Current User Profile
+ *     summary: Get the current user profile
  *     tags: [Users]
  *     security:
  *       - bearerAuth: []
- *     description: Retrieve the authenticated user's complete profile information including demographic data used for hard filtering
+ *     description: Retrieve the authenticated user's profile, including the fields used for job filtering.
  *     responses:
  *       200:
- *         description: User profile successfully retrieved
+ *         description: User profile retrieved successfully
  *         content:
  *           application/json:
  *             schema:
@@ -50,7 +50,7 @@ const upload = multer({ storage: multer.memoryStorage() });
  *                       type: string
  *                       format: date
  *                       nullable: true
- *                       description: User's birth date (YYYY-MM-DD) for hard filtering by age
+ *                       description: User's birth date (YYYY-MM-DD) for age-based filtering
  *                     education_level:
  *                       type: string
  *                       nullable: true
@@ -97,14 +97,13 @@ const upload = multer({ storage: multer.memoryStorage() });
  *       401:
  *         $ref: '#/components/responses/UnauthorizedError'
  *   put:
- *     summary: Update Current User Profile
+ *     summary: Update the current user profile
  *     tags: [Users]
  *     security:
  *       - bearerAuth: []
  *     description: |
- *       Update user profile including demographic data.
- *       Only include fields you want to change; omitted or empty fields keep their existing values.
- *       Leave fields blank if you do not want to change them.
+ *       Update the user's profile, including demographic data.
+ *       Only include fields you want to change; omitted or empty fields keep their current values.
  *     requestBody:
  *       required: true
  *       content:
@@ -158,7 +157,7 @@ const upload = multer({ storage: multer.memoryStorage() });
  *                 description: Overview of key technical skills (comma-separated)
  *     responses:
  *       200:
- *         description: Profile successfully updated
+ *         description: Profile updated successfully
  *         content:
  *           application/json:
  *             schema:
@@ -220,14 +219,14 @@ const upload = multer({ storage: multer.memoryStorage() });
  *       401:
  *         $ref: '#/components/responses/UnauthorizedError'
  *   delete:
- *     summary: Delete Current User Account
+ *     summary: Delete the current user account
  *     tags: [Users]
  *     security:
  *       - bearerAuth: []
- *     description: Permanently delete the authenticated user's account and all associated data from the system
+ *     description: Permanently delete the authenticated user's account and all associated data.
  *     responses:
  *       200:
- *         description: Account successfully deleted
+ *         description: Account deleted successfully
  *         content:
  *           application/json:
  *             schema:

@@ -1,166 +1,189 @@
 # ITCareerMatch Backend API
 
-Backend service for ITCareerMatch, a job-matching platform that analyzes CVs, extracts skills, and returns job recommendations based on profile compatibility.
+Backend untuk ITCareerMatch, platform yang menerima CV, memproses analisis skill, menyimpan arsip CV, lalu memberi rekomendasi lowongan dan hasil analisis kecocokan.
 
-## Tech Stack
+## Ringkasan
 
-- Node.js 18+ with Express
-- PostgreSQL via Supabase
-- Redis + BullMQ for async processing
-- Supabase Auth for JWT authentication
-- Supabase Storage for CV and avatar files
-- Swagger UI for API documentation
-- External AI service for CV and job matching
+- Backend dibangun dengan Node.js dan Express (ES Modules).
+- Data utama disimpan di Supabase PostgreSQL.
+- Task analisis dijalankan asinkron lewat BullMQ dan Redis.
+- CV guest preview hanya menyimpan sesi sementara di Redis dan mengembalikan `success` + `temp_token`.
+- Chatbot menggunakan Groq SDK.
+- Dokumentasi API tersedia lewat Swagger UI.
 
-## Quick Start
+## Teknologi Utama
 
-### Prerequisites
+- Node.js 18+ dan Express
+- Supabase Auth, PostgreSQL, dan Storage
+- Redis
+- BullMQ
+- Swagger UI
+- Groq SDK untuk chatbot dan TTS
+- pdfjs-dist untuk parsing PDF CV
 
-- Node.js 18+
-- PostgreSQL / Supabase project
-- Redis server
-- Supabase Auth enabled
-- AI service URL configured
+## Prasyarat
 
-### Install dependencies
+- Node.js 18+.
+- Redis berjalan.
+- Proyek Supabase aktif.
+- `SUPABASE_URL` dan `SUPABASE_SERVICE_ROLE_KEY` tersedia.
+- `AI_API_URL` tersedia untuk layanan AI eksternal.
+- `GROQ_API_KEY` tersedia untuk chatbot/TTS.
+
+## Instalasi
 
 ```bash
 npm install
 ```
 
-### Environment variables
+## Konfigurasi Environment
 
-Create a `.env` file and adjust the values for your environment.
+Buat file `.env` lalu isi sesuai lingkungan Anda.
 
 ```env
 NODE_ENV=development
 PORT=3000
 DATABASE_URL=postgresql://user:password@db.supabase.co:5432/postgres
 SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_ANON_KEY=your_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 REDIS_URL=redis://localhost:6379
-AI_API_URL=https://your-ai-service.example.com
+AI_API_URL=http://localhost:8000
+GROQ_API_KEY=your_groq_api_key
 INTERNAL_API_KEY=your_internal_api_key
 SWAGGER_HOST=localhost:3000
 SWAGGER_SCHEME=http
 FRONTEND_URL=http://localhost:3001
 ```
 
-### Run locally
+## Menjalankan Proyek
 
-Start Redis first, then run the API:
+Jalankan API development:
 
 ```bash
 npm run dev
 ```
 
-Swagger docs are available at:
-
-```text
-http://localhost:3000/api-docs
-```
-
-### Run the worker
-
-The worker processes queued CV analysis jobs.
+Jalankan worker:
 
 ```bash
 npm run worker
 ```
 
-You can also run the worker in production mode:
-
-```bash
-npm run worker:start
-```
-
-### Production
+Untuk mode produksi:
 
 ```bash
 npm run start
+npm run worker:start
 ```
 
-## Available Scripts
+## Dokumentasi API
 
-- `npm run dev` - Start the API in development mode with nodemon
-- `npm run start` - Start the API in production mode
-- `npm run worker` - Start the queue worker in development mode with nodemon
-- `npm run worker:start` - Start the queue worker in production mode
-- `npm run migrate` - Run database migrations
+Swagger UI tersedia di:
 
-## API Overview
+```text
+http://localhost:3000/api-docs
+```
 
-### Public endpoints
+## Perintah
 
-- `GET /api/v1/jobs` - List jobs with filters
-- `GET /api/v1/jobs/:id` - Get job details
-- `POST /api/v1/cv/preview` - Preview CV as guest without saving to database
+- `npm run dev` - menjalankan API dengan nodemon
+- `npm run start` - menjalankan API mode produksi
+- `npm run worker` - menjalankan worker dengan nodemon
+- `npm run worker:start` - menjalankan worker mode produksi
+- `npm run migrate` - menjalankan migrasi database
 
-### Authenticated endpoints
+## Endpoint Publik
 
-- `GET /api/v1/user/profile` - Get current user profile
-- `PUT /api/v1/user/profile` - Update current user profile
-- `DELETE /api/v1/user/profile` - Delete current user account
-- `POST /api/v1/cv/analyze` - Upload and analyze CV asynchronously
-- `GET /api/v1/cv/status/:task_id` - Check analysis task status
-- `GET /api/v1/cv/archives` - List uploaded CV archives
-- `DELETE /api/v1/cv/archives/:id` - Delete a CV archive and related analysis data
-- `GET /api/v1/analysis/history` - List analysis history
-- `GET /api/v1/analysis/:id` - Get analysis details
-- `GET /api/v1/jobs/recommendations?cv_id=...` - Get top job recommendations for a specific CV
+- `GET /api/v1/jobs` - daftar lowongan dengan filter
+- `GET /api/v1/jobs/:id` - detail lowongan
+- `POST /api/v1/cv/preview` - buat sesi preview CV guest di Redis
+- `POST /api/v1/chatbot/chat` - chat karier, login opsional untuk konteks CV
+- `GET /api/v1/chatbot/voices` - daftar suara TTS yang tersedia
 
-### Internal endpoints
+## Endpoint Terproteksi
 
-- `POST /internal/ai/match` - Trigger internal AI matching flow
-- `POST /api/v1/cv/analyze-single` - Internal single-job CV analysis endpoint
+- `GET /api/v1/user/profile` - ambil profil pengguna
+- `PUT /api/v1/user/profile` - perbarui profil pengguna
+- `DELETE /api/v1/user/profile` - hapus akun pengguna
+- `POST /api/v1/cv/analyze` - upload dan analisis CV penuh
+- `POST /api/v1/cv/claim` - klaim sesi preview guest setelah login
+- `GET /api/v1/cv/status/:task_id` - cek status analisis
+- `GET /api/v1/cv/archives` - daftar arsip CV pengguna
+- `DELETE /api/v1/cv/archives/:id` - hapus arsip CV dan data analisis terkait
+- `GET /api/v1/jobs/recommendations?cv_id=...` - rekomendasi lowongan untuk CV tertentu
+- `GET /api/v1/analysis/history` - riwayat analisis
+- `GET /api/v1/analysis/:id` - detail analisis
+- `POST /api/v1/chatbot/tts` - konversi teks ke audio WAV
+- `POST /api/v1/cv/analyze-single` - analisis gap skill satu CV terhadap satu lowongan
 
-## Authentication
+## Endpoint Internal
 
-This API uses Supabase Auth JWT tokens.
+- `POST /internal/ai/match` - memasukkan job pencocokan AI ke antrean
+
+## Autentikasi
+
+Sebagian besar endpoint private memakai JWT Supabase.
 
 ```bash
 Authorization: Bearer <supabase_jwt_token>
 ```
 
-Most private endpoints require a valid JWT in the `Authorization` header.
+## Alur Utama
 
-## Queue Flow
+### 1. Guest preview
 
-1. User uploads a CV through `POST /api/v1/cv/analyze`
-2. API stores the CV and adds an analysis task to BullMQ
-3. Worker processes the task and calls the AI service
-4. Analysis results are saved to the database
-5. Client polls `GET /api/v1/cv/status/:task_id`
+1. Pengguna mengunggah PDF atau mengirim `cv_data`.
+2. Backend mem-parsing PDF atau mengubah form manual menjadi teks CV.
+3. Backend memvalidasi format CV.
+4. Backend menyimpan sesi sementara di Redis.
+5. Backend mengembalikan hanya `success` dan `temp_token`.
 
-## Data Model
+### 2. Analyze / claim
 
-Main tables used by the backend:
+1. Pengguna login lalu memanggil `POST /api/v1/cv/claim`, atau langsung upload ke `POST /api/v1/cv/analyze`.
+2. Backend menyimpan arsip CV ke Supabase.
+3. Backend membuat task analisis di BullMQ.
+4. Worker memproses task dan memanggil layanan AI eksternal.
+5. Hasil analisis disimpan ke tabel analisis.
+6. Frontend melakukan polling ke `GET /api/v1/cv/status/:task_id`.
 
-- `users` - user profiles
-- `jobs` - job listings
-- `cv_archives` - uploaded CV files and metadata
-- `cv_skills` - extracted CV skills
-- `analysis_history` - CV and job match history
-- `analysis_details` - skill match and skill gap details
-- `skills` - master skill list
-- `job_skills` - job-to-skill mapping
+### 3. Rekomendasi lowongan
 
-## Swagger Notes
+1. Pengguna mengambil daftar arsip CV dari `GET /api/v1/cv/archives`.
+2. Pengguna memilih `cv_id` tertentu.
+3. Frontend memanggil `GET /api/v1/jobs/recommendations?cv_id=...`.
+4. Backend membaca hasil analisis yang sudah tersimpan dan mengembalikan rekomendasi teratas.
 
-- Swagger UI is configured in `src/config/swagger.js`
-- Global bearer auth is enabled for protected routes
-- Public endpoints override this with `security: []`
-- Some update forms intentionally use blank dropdown values so Swagger does not prefill data
+### 4. Chatbot
 
-## CORS Notes
+1. Frontend memanggil `POST /api/v1/chatbot/chat`.
+2. Jika pengguna punya CV terbaru, backend dapat menambah konteks CV pada pesan.
+3. Balasan dibuat oleh Groq.
+4. Untuk TTS, backend mengembalikan file WAV biner.
 
-- Development allows local testing more loosely
-- Production uses a whitelist of frontend domains
-- Adjust the whitelist in `src/app.js` or use `FRONTEND_URL`
+## Struktur Data Utama
 
-## Error Format
+- `users` - profil pengguna
+- `jobs` - daftar lowongan
+- `job_skills` - relasi lowongan ke skill
+- `skills` - master skill
+- `cv_archives` - arsip CV dan metadata file
+- `cv_skills` - skill yang diekstrak dari CV
+- `analysis_history` - riwayat rekomendasi per CV
+- `analysis_details` - detail skill match/gap per analisis
 
-Success response:
+## Catatan Implementasi
+
+- Guest preview tidak menyimpan preview score, skill gap, atau insight AI.
+- `POST /api/v1/cv/analyze-single` dipakai internal saja sebagai helper/fallback untuk analisis satu lowongan.
+- Worker memakai antrean `aiQueue` dan status task disimpan di Redis dengan TTL 7 hari.
+- Parsing PDF membutuhkan PDF berbasis teks, bukan hasil scan gambar.
+- CORS development lebih longgar, sedangkan production memakai whitelist origin.
+- Swagger server URL mengikuti `SWAGGER_HOST` dan `SWAGGER_SCHEME` jika tersedia.
+
+## Format Respons
+
+Sukses umum:
 
 ```json
 {
@@ -169,24 +192,26 @@ Success response:
 }
 ```
 
-Error response:
+Error umum:
 
 ```json
 {
   "success": false,
-  "message": "Error description"
+  "message": "Pesan error"
 }
 ```
 
-## Related Files
+Untuk beberapa endpoint analisis, respons juga bisa memuat `status`, `task_id`, atau `result`.
 
-- `src/index.js` - application entry point
-- `src/app.js` - Express app setup
-- `src/config/swagger.js` - Swagger configuration
-- `src/lib/queue.js` - BullMQ queue helpers
-- `src/worker.js` - worker entry point
-- `src/ai.worker.js` - AI job processor
+## File Terkait
 
-## License
+- `src/index.js` - entry point aplikasi
+- `src/app.js` - konfigurasi Express dan route
+- `src/config/swagger.js` - konfigurasi Swagger
+- `src/worker.js` - entry point worker
+- `src/ai.worker.js` - pemroses job AI
+- `src/lib/queue.js` - helper queue BullMQ
+
+## Lisensi
 
 Internal project.

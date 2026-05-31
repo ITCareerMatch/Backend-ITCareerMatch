@@ -8,7 +8,7 @@ const router = express.Router();
  * @swagger
  * /internal/ai/match:
  *   post:
- *     summary: Trigger AI matching process for a user and CV
+ *     summary: Enqueue AI matching for a user and CV
  *     tags: [Internal]
  *     security:
  *       - internalApiKey: []
@@ -27,16 +27,16 @@ const router = express.Router();
  *             properties:
  *               userId:
  *                 type: string
- *                 description: The ID of the user.
+ *                 description: User ID.
  *               cvId:
  *                 type: string
- *                 description: The ID of the CV to be analyzed.
+ *                 description: CV ID to analyze.
  *             example:
  *               userId: "a1b2c3d4-e5f6-7890-1234-567890abcdef"
  *               cvId: "b2c3d4e5-f6a7-8901-2345-67890abcdef1"
  *     responses:
  *       "202":
- *         description: Accepted. The AI matching process has been successfully queued.
+ *         description: Accepted. The AI matching job has been queued.
  *         content:
  *           application/json:
  *             schema:
@@ -44,7 +44,7 @@ const router = express.Router();
  *               properties:
  *                 message:
  *                   type: string
- *                   example: AI matching process has been queued.
+ *                   example: AI matching job has been queued.
  *       "400":
  *         description: Bad Request. Missing userId or cvId.
  *       "401":

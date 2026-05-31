@@ -10,13 +10,13 @@ const router = express.Router();
  * @swagger
  * /api/v1/cv/preview:
  *   post:
- *     summary: Preview CV (Guest or Manual Input)
+ *     summary: Create a guest CV preview session
  *     tags: [CV]
  *     security: []
  *     description: |
- *       Upload a PDF or submit manual CV input as a guest user for quick preview.
- *       No data is saved to the database. Results are stored temporarily in Redis (TTL 30 minutes).
- *       Returns a temp_token that can be used to claim the session after login.
+ *       Upload a PDF or submit manual CV input as a guest to create a temporary preview session.
+ *       The CV is not saved to the database.
+ *       Session data is stored in Redis for 30 minutes and can be claimed after login with `temp_token`.
  *     requestBody:
  *       required: true
  *       content:
@@ -32,12 +32,12 @@ const router = express.Router();
  *                 type: string
  *                 description: |
  *                   JSON stringified CV data. Supports two formats:
- *                   1. Raw text: `{"text": "Pengalaman Kerja:\n..."}`
+ *                   1. Raw text: `{"text": "Work Experience:\n..."}`
  *                   2. Structured form: `{"name":"John","email":"john@example.com","skills":"Python, SQL"}`
- *                 example: '{"text":"Pengalaman Kerja:\n1. Web Developer di PT Angin Ribut\nSkills: React, Node.js, PostgreSQL"}'
+ *                 example: '{"text":"Work Experience:\n1. Web Developer at PT Angin Ribut\nSkills: React, Node.js, PostgreSQL"}'
  *     responses:
  *       200:
- *         description: CV preview processed successfully
+ *         description: Guest preview session created successfully
  *         content:
  *           application/json:
  *             schema:
@@ -49,7 +49,7 @@ const router = express.Router();
  *                 temp_token:
  *                   type: string
  *                   format: uuid
- *                   description: Token to claim session after login (valid for 30 minutes)
+ *                   description: Temporary token used to claim the session after login
  *       400:
  *         $ref: '#/components/responses/BadRequestError'
  */
@@ -58,13 +58,13 @@ const router = express.Router();
  * @swagger
  * /api/v1/cv/analyze:
  *   post:
- *     summary: Analyze CV (Authenticated User - Full Analysis)
+ *     summary: Analyze a CV for an authenticated user
  *     tags: [CV]
  *     security:
  *       - bearerAuth: []
  *     description: |
- *       Upload a PDF or submit manual CV input for full AI analysis.
- *       CV is saved to the database and analysis is triggered asynchronously via job queue.
+ *       Upload a PDF or submit manual CV input for full analysis.
+ *       The CV is saved to the database and analysis is triggered asynchronously through the job queue.
  *       Returns a task_id for polling analysis status.
  *     requestBody:
  *       required: true
@@ -81,9 +81,9 @@ const router = express.Router();
  *                 type: string
  *                 description: |
  *                   JSON stringified CV data. Supports two formats:
- *                   1. Raw text: `{"text": "Pengalaman Kerja:\n..."}`
+ *                   1. Raw text: `{"text": "Work Experience:\n..."}`
  *                   2. Structured form: `{"name":"John","email":"john@example.com","skills":"Python, SQL"}`
- *                 example: '{"text":"Pengalaman Kerja:\n1. Web Developer di PT Angin Ribut\nSkills: React, Node.js, PostgreSQL"}'
+ *                 example: '{"text":"Work Experience:\n1. Web Developer at PT Angin Ribut\nSkills: React, Node.js, PostgreSQL"}'
  *     responses:
  *       200:
  *         description: CV uploaded successfully, analysis task created
@@ -109,16 +109,14 @@ const router = express.Router();
  * @swagger
  * /api/v1/cv/claim:
  *   post:
- *     summary: Claim Preview Session and Upgrade to Full Analysis
+ *     summary: Claim a guest preview session
  *     tags: [CV]
  *     security:
  *       - bearerAuth: []
  *     description: |
- *       Authenticated users can claim their temporary preview session using temp_token
- *       received from /preview endpoint. This will:
- *       1. Attach the CV to their user account
- *       2. Trigger full AI analysis with job recommendations
- *       Returns a task_id for polling full analysis status.
+ *       Authenticated users can claim a temporary preview session using the `temp_token`
+ *       returned by the preview endpoint. This will attach the CV to the user account
+ *       and trigger full analysis.
  *     requestBody:
  *       required: true
  *       content:
@@ -134,7 +132,7 @@ const router = express.Router();
  *                 description: Token from /preview endpoint
  *     responses:
  *       200:
- *         description: Session claimed successfully, full analysis started
+ *         description: Session claimed successfully and full analysis started
  *         content:
  *           application/json:
  *             schema:
@@ -158,13 +156,13 @@ const router = express.Router();
  * @swagger
  * /api/v1/cv/status/{task_id}:
  *   get:
- *     summary: Get CV Analysis Status
+ *     summary: Get CV analysis status
  *     tags: [CV]
  *     security:
  *       - bearerAuth: []
  *     description: |
  *       Check the status of an ongoing CV analysis task.
- *       Returns current status (processing, completed, or failed) and results if complete.
+ *       Returns the current status and the result when processing is complete.
  *     parameters:
  *       - in: path
  *         name: task_id
@@ -218,11 +216,11 @@ const router = express.Router();
  * @swagger
  * /api/v1/cv/archives:
  *   get:
- *     summary: Get User CV Archives
+ *     summary: Get the current user's CV archives
  *     tags: [CV]
  *     security:
  *       - bearerAuth: []
- *     description: Retrieve all CV archives for the authenticated user so the frontend can select a specific cv_id for recommendations.
+ *     description: Retrieve all CV archives for the authenticated user so the frontend can select a specific `cv_id` for recommendations.
  *     responses:
  *       200:
  *         description: CV archives retrieved successfully
@@ -263,11 +261,11 @@ const router = express.Router();
  * @swagger
  * /api/v1/cv/archives/{id}:
  *   delete:
- *     summary: Delete a CV Archive
+ *     summary: Delete a CV archive
  *     tags: [CV]
  *     security:
  *       - bearerAuth: []
- *     description: Delete a specific CV archive, its uploaded file in storage, and all related analysis data.
+ *     description: Delete a CV archive, its uploaded file in storage, and all related analysis data.
  *     parameters:
  *       - in: path
  *         name: id
@@ -291,14 +289,14 @@ const router = express.Router();
  * @swagger
  * /api/v1/cv/analyze-single:
  *   post:
- *     summary: Analyze single CV against single job (Internal Endpoint)
+ *     summary: Analyze one CV against one job
  *     tags: [CV]
  *     security:
  *       - internalApiKey: []
  *     description: |
  *       Internal endpoint for analyzing a single CV against a single job.
- *       Used by backend services or worker jobs as a helper/fallback for single-job gap analysis.
- *       Not meant to be called directly from frontend.
+ *       Used by backend services or worker jobs as a helper or fallback for single-job gap analysis.
+ *       Not meant to be called directly from the frontend.
  *       Requires internal API authentication.
  *     requestBody:
  *       required: true
@@ -335,7 +333,7 @@ const router = express.Router();
  *                     example: "Requirements: Node.js, SQL, Docker"
  *     responses:
  *       200:
- *         description: Gap skill analysis completed successfully
+ *         description: Gap analysis completed successfully
  *         content:
  *           application/json:
  *             schema:

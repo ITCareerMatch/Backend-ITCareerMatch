@@ -9,7 +9,7 @@ const chatLimiter = rateLimit({
   max: 10,
   message: {
     success: false,
-    message: "Terlalu banyak pesan, coba lagi nanti.",
+    message: "Too many requests, please try again later.",
   },
 });
 
@@ -18,7 +18,7 @@ const ttsLimiter = rateLimit({
   max: 20,
   message: {
     success: false,
-    message: "Terlalu banyak request TTS, coba lagi nanti.",
+    message: "Too many TTS requests, please try again later.",
   },
 });
 
@@ -26,14 +26,13 @@ const ttsLimiter = rateLimit({
  * @swagger
  * /api/v1/chatbot/chat:
  *   post:
- *     summary: Chat with optional personalization using user's latest CV
+ *     summary: Chat with optional CV personalization
  *     tags: [Chatbot]
  *     security:
  *       - bearerAuth: []
  *     description: |
- *       Chat endpoint. If `Authorization: Bearer <token>` is provided, the backend
- *       will attempt to attach the user's latest CV text as `raw_text` to the
- *       AI request for personalized responses. Otherwise returns a general reply.
+ *       If an access token is provided, the backend attaches the user's latest CV text
+ *       as `raw_text` to the AI request for a personalized reply. Otherwise it returns a general reply.
  *     requestBody:
  *       required: true
  *       content:
@@ -50,7 +49,7 @@ const ttsLimiter = rateLimit({
  *                 items:
  *                   type: object
  *             example:
- *               message: "Apakah skill saya cocok untuk posisi Data Engineer?"
+ *               message: "Are my skills suitable for a Data Engineer position?"
  *               history: []
  *     responses:
  *       200:
@@ -72,14 +71,14 @@ const ttsLimiter = rateLimit({
  * @swagger
  * /api/v1/chatbot/tts:
  *   post:
- *     summary: Convert text to speech (audio/wav)
+ *     summary: Convert text to speech
  *     tags: [Chatbot]
  *     security:
  *       - bearerAuth: []
  *     description: |
- *       Converts text to audio. Response is a binary audio/wav file.
- *       Handle as blob/arraybuffer di FE, bukan JSON.
- *       TTS agak lambat (~2-5 detik) karena teks dipotong jadi beberapa chunk — ini normal.
+ *       Convert text to a WAV audio response.
+ *       Handle the response as a blob or arraybuffer on the frontend, not as JSON.
+ *       The request may take a few seconds because the text is processed in chunks.
  *     requestBody:
  *       required: true
  *       content:
@@ -95,11 +94,11 @@ const ttsLimiter = rateLimit({
  *                 type: string
  *                 description: "Voice ID. Default: diana"
  *             example:
- *               text: "Halo! Selamat datang di ITCareerMatch."
+ *               text: "Hello! Welcome to ITCareerMatch."
  *               voice: "diana"
  *     responses:
  *       200:
- *         description: Binary audio/wav file
+ *         description: Binary WAV audio file
  *         content:
  *           audio/wav:
  *             schema:
@@ -111,12 +110,12 @@ const ttsLimiter = rateLimit({
  * @swagger
  * /api/v1/chatbot/voices:
  *   get:
- *     summary: Get list of available TTS voices
+ *     summary: List available TTS voices
  *     tags: [Chatbot]
  *     security: []
  *     responses:
  *       200:
- *         description: List of available voices
+ *         description: Available voices returned successfully
  *         content:
  *           application/json:
  *             schema:

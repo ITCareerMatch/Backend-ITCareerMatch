@@ -12,11 +12,11 @@ const router = express.Router();
  * @swagger
  * /api/v1/analysis/history:
  *   get:
- *     summary: Get User's Analysis History
+ *     summary: List analysis history
  *     tags: [Analysis]
  *     security:
  *       - bearerAuth: []
- *     description: Retrieve the list of all previous CV and job matching analyses performed by the authenticated user
+ *     description: Retrieve the authenticated user's previous CV and job matching analyses.
  *     parameters:
  *       - in: query
  *         name: page
@@ -35,7 +35,7 @@ const router = express.Router();
  *         schema:
  *           type: string
  *           format: uuid
- *         description: "(Optional) Filter history by specific CV ID. If omitted, returns all history across all CVs."
+ *         description: Optional filter by CV ID. If omitted, returns history for all CVs.
  *     responses:
  *       200:
  *         description: Analysis history retrieved successfully
@@ -82,11 +82,11 @@ const router = express.Router();
  * @swagger
  * /api/v1/analysis/{id}:
  *   get:
- *     summary: Get Analysis Details
+ *     summary: Get analysis details
  *     tags: [Analysis]
  *     security:
  *       - bearerAuth: []
- *     description: Retrieve detailed analysis results for a specific CV-job matching analysis, including skill match, skill gap, and AI insights
+ *     description: Retrieve detailed analysis results for a specific CV-job match, including skill match, skill gap, and AI insight.
  *     parameters:
  *       - in: path
  *         name: id
