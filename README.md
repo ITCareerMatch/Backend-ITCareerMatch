@@ -114,11 +114,12 @@ http://localhost:3000/api-docs
 - `GET /api/v1/analysis/history` - riwayat analisis
 - `GET /api/v1/analysis/:id` - detail analisis
 - `POST /api/v1/chatbot/tts` - konversi teks ke audio WAV
-- `POST /api/v1/cv/analyze-single` - analisis gap skill satu CV terhadap satu lowongan
 
 ## Endpoint Internal
 
 - `POST /internal/ai/match` - memasukkan job pencocokan AI ke antrean
+- `POST /internal/ai/analyze-single` - analisis gap skill satu CV terhadap satu lowongan
+- `POST /api/v1/cv/analyze-single` - helper internal untuk analisis gap skill satu CV terhadap satu lowongan
 
 ## Autentikasi
 
@@ -175,11 +176,14 @@ Authorization: Bearer <supabase_jwt_token>
 ## Catatan Implementasi
 
 - Guest preview tidak menyimpan preview score, skill gap, atau insight AI.
+- `analysis_history` dan `analysis_details` menyimpan `ai_insight` untuk hasil analisis.
 - `POST /api/v1/cv/analyze-single` dipakai internal saja sebagai helper/fallback untuk analisis satu lowongan.
 - Worker memakai antrean `aiQueue` dan status task disimpan di Redis dengan TTL 7 hari.
+- Sesi guest preview di Redis bersifat sementara, sekitar 30 menit.
 - Parsing PDF membutuhkan PDF berbasis teks, bukan hasil scan gambar.
 - CORS development lebih longgar, sedangkan production memakai whitelist origin.
-- Swagger server URL mengikuti `SWAGGER_HOST` dan `SWAGGER_SCHEME` jika tersedia.
+- Swagger server URL mengikuti `SWAGGER_HOST` dan `SWAGGER_SCHEME` jika tersedia, atau fallback ke localhost / Railway production URL.
+- Header internal backend-to-backend memakai `x-internal-request`.
 
 ## Format Respons
 

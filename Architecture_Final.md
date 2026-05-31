@@ -146,11 +146,12 @@ Bagian ini menjaga hubungan antara endpoint, service, dan tabel Supabase Postgre
 - `GET /api/v1/analysis/history`
 - `GET /api/v1/analysis/:id`
 - `POST /api/v1/chatbot/tts`
-- `POST /api/v1/cv/analyze-single` (internal helper, tidak untuk frontend)
 
 ### Internal
 
 - `POST /internal/ai/match`
+- `POST /internal/ai/analyze-single`
+- `POST /api/v1/cv/analyze-single` (internal helper, tidak untuk frontend)
 
 ## Catatan Implementasi Penting
 
@@ -162,6 +163,12 @@ Bagian ini menjaga hubungan antara endpoint, service, dan tabel Supabase Postgre
 - CORS development lebih longgar, sedangkan production memakai whitelist origin.
 - Swagger server URL mengikuti `SWAGGER_HOST` dan `SWAGGER_SCHEME` bila tersedia, atau fallback ke `http://localhost:<port>` / Railway production URL.
 - Header internal untuk komunikasi backend-to-backend memakai `x-internal-request`.
+
+## Catatan Skema Data
+
+- `analysis_history.ai_insight` menyimpan insight utama yang tampil di detail analisis.
+- `analysis_details.ai_insight` dipakai sebagai sumber detail per skill dan disinkronkan ke `analysis_history`.
+- View `analysis_history_wib` ikut memuat `ai_insight` untuk kebutuhan consumer yang membaca view.
 
 ## Kesimpulan
 
