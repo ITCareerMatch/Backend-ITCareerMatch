@@ -166,17 +166,29 @@ export async function getTaskStatusAndResult({ userId, taskId }) {
 
 /**
  * Create guest preview session (temporary, no DB save)
+ * If the guest uploaded a file, the file is first stored in Supabase storage
+ * so the metadata can be persisted when the session is claimed.
  * @param {Object} params - AI service response data
  * @returns {Object} {tempToken, preview}
  */
-export async function createGuestPreviewSession({ cvText, aiResponse }) {
+export async function createGuestPreviewSession({ cvText, aiResponse, file }) {
   try {
+    let fileUrl = null;
+    let fileName = null;
+
+    if (file) {
+      fileUrl = await cvRepository.uploadToSupabase(file);
+      fileName = file.originalname;
+    }
+
     const tempToken = await createGuestSession({
       raw_text: cvText,
       extracted_skills: aiResponse.extracted_skills || [],
       skill_gap: aiResponse.skill_gap || [],
       ai_insight: aiResponse.ai_insight || [],
       preview_score: aiResponse.preview_score || 0,
+      file_url: fileUrl,
+      file_name: fileName,
     });
 
     return {
@@ -212,8 +224,8 @@ export async function claimGuestSession({ userId, tempToken }) {
     // Save CV to permanent storage
     const cvArchive = await cvRepository.saveCvArchive({
       userId,
-      fileName: null,
-      fileUrl: null,
+      fileName: session.file_name || null,
+      fileUrl: session.file_url || null,
       rawText: session.raw_text,
       cvSource: "preview_upgrade",
       status: "processing",

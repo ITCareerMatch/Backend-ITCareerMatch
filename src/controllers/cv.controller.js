@@ -129,6 +129,7 @@ class CvController {
       const { tempToken, preview } = await createGuestPreviewSession({
         cvText,
         aiResponse,
+        file: req.file || null,
       });
 
       res.json({
