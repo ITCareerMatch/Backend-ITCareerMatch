@@ -9,12 +9,13 @@ class AnalysisRepository {
     matchScore,
     jobTitleSnapshot,
     companySnapshot,
+    aiInsight = null,
   }) {
     const id = uuidv4();
     const query = `
-      INSERT INTO analysis_history (id, user_id, cv_id, job_id, match_score, job_title_snapshot, company_snapshot, analyzed_at)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
-      RETURNING id, user_id, cv_id, job_id, match_score, job_title_snapshot, company_snapshot, analyzed_at
+      INSERT INTO analysis_history (id, user_id, cv_id, job_id, match_score, job_title_snapshot, company_snapshot, ai_insight, analyzed_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+      RETURNING id, user_id, cv_id, job_id, match_score, job_title_snapshot, company_snapshot, ai_insight, analyzed_at
     `;
 
     const { rows } = await pool.query(query, [
@@ -25,6 +26,7 @@ class AnalysisRepository {
       matchScore,
       jobTitleSnapshot,
       companySnapshot,
+      aiInsight,
     ]);
     return rows[0];
   }
@@ -57,9 +59,45 @@ class AnalysisRepository {
     await pool.query(query, values);
   }
 
+  async updateAnalysisInsight(analysisId, aiInsight) {
+    const query = `
+      UPDATE analysis_history
+      SET ai_insight = $2
+      WHERE id = $1
+      RETURNING id, user_id, cv_id, job_id, match_score, job_title_snapshot, company_snapshot, ai_insight, analyzed_at
+    `;
+
+    const { rows } = await pool.query(query, [analysisId, aiInsight]);
+    return rows[0] || null;
+  }
+
+  async getOrCreateSkillIdByName(skillName) {
+    const normalized = skillName?.trim();
+    if (!normalized) return null;
+
+    const existing = await pool.query(
+      `SELECT id FROM skills WHERE name ILIKE $1 LIMIT 1`,
+      [normalized],
+    );
+
+    if (existing.rows.length > 0) {
+      return existing.rows[0].id;
+    }
+
+    const created = await pool.query(
+      `INSERT INTO skills (name)
+       VALUES ($1)
+       ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name
+       RETURNING id`,
+      [normalized],
+    );
+
+    return created.rows[0]?.id || null;
+  }
+
   async getAnalysisHistory(userId, limit = 100, offset = 0, cvId = null) {
     let query = `
-      SELECT id, user_id, cv_id, job_id, match_score, job_title_snapshot, company_snapshot, analyzed_at
+      SELECT id, user_id, cv_id, job_id, match_score, job_title_snapshot, company_snapshot, ai_insight, analyzed_at
       FROM analysis_history
       WHERE user_id = $1
     `;
@@ -92,7 +130,7 @@ class AnalysisRepository {
 
   async getAnalysisById(analysisId) {
     const query = `
-      SELECT id, user_id, cv_id, job_id, match_score, job_title_snapshot, company_snapshot, analyzed_at
+      SELECT id, user_id, cv_id, job_id, match_score, job_title_snapshot, company_snapshot, ai_insight, analyzed_at
       FROM analysis_history
       WHERE id = $1
     `;

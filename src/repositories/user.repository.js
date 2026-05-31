@@ -187,8 +187,8 @@ class UserRepository {
         );
 
         const { rows } = await pool.query(
-          `INSERT INTO analysis_history (user_id, cv_id, job_id, match_score, job_title_snapshot, company_snapshot)
-           VALUES ($1, $2, $3, $4, $5, $6)
+          `INSERT INTO analysis_history (user_id, cv_id, job_id, match_score, job_title_snapshot, company_snapshot, ai_insight)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)
            RETURNING id`,
           [
             userId,
@@ -197,6 +197,7 @@ class UserRepository {
             rec.match_score,
             rec.job_title,
             rec.company,
+            rec.ai_insight || null,
           ],
         );
 

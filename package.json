@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "migrate": "node src/migrations/runner.js",
+    "backfill:analysis-ai-insight": "node scripts/backfill_analysis_ai_insight.js",
     "dev": "nodemon src/index.js",
     "start": "node src/index.js",
     "worker": "nodemon src/worker.js",
