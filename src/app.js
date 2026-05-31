@@ -21,24 +21,35 @@ const corsOptions = {
       return callback(null, true);
     }
 
-    // Production: Strict whitelist
+    // Production: Strict whitelist, with optional additional origins via env
+    const extraOrigins = process.env.ALLOW_ADDITIONAL_ORIGINS
+      ? process.env.ALLOW_ADDITIONAL_ORIGINS.split(",").map((s) => s.trim())
+      : [];
+
     const allowedOrigins = [
       "https://itcareermatch.up.railway.app",
       "https://itcareermatch.com",
       "https://www.itcareermatch.com",
       process.env.FRONTEND_URL,
+      ...extraOrigins,
     ].filter(Boolean);
 
     if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
       console.warn(`[CORS] Potential CORS issue from origin: ${origin}`);
+      // Still allow if you'd like to avoid hard rejections, but log for auditing.
       callback(null, true);
     }
   },
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization", "Accept"],
+  allowedHeaders: [
+    "Content-Type",
+    "Authorization",
+    "Accept",
+    "x-internal-request",
+  ],
   optionsSuccessStatus: 200,
   preflightContinue: false,
 };
