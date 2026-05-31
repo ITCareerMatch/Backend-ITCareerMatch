@@ -28,7 +28,8 @@ const ttsLimiter = rateLimit({
  *   post:
  *     summary: Chat with optional personalization using user's latest CV
  *     tags: [Chatbot]
- *     security: []
+ *     security:
+ *       - bearerAuth: []
  *     description: |
  *       Chat endpoint. If `Authorization: Bearer <token>` is provided, the backend
  *       will attempt to attach the user's latest CV text as `raw_text` to the
@@ -73,7 +74,8 @@ const ttsLimiter = rateLimit({
  *   post:
  *     summary: Convert text to speech (audio/wav)
  *     tags: [Chatbot]
- *     security: []
+ *     security:
+ *       - bearerAuth: []
  *     description: |
  *       Converts text to audio. Response is a binary audio/wav file.
  *       Handle as blob/arraybuffer di FE, bukan JSON.
