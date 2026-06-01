@@ -48,6 +48,8 @@ SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 REDIS_URL=redis://localhost:6379
 AI_API_URL=http://localhost:8000
+AI_MATCH_JOB_LIMIT=20
+AI_MATCH_CANDIDATE_POOL_LIMIT=200
 GROQ_API_KEY=your_groq_api_key
 INTERNAL_API_KEY=your_internal_api_key
 SWAGGER_HOST=localhost:3000
@@ -179,6 +181,8 @@ Authorization: Bearer <supabase_jwt_token>
 - `analysis_history` dan `analysis_details` menyimpan `ai_insight` untuk hasil analisis.
 - `POST /api/v1/cv/analyze-single` dipakai internal saja sebagai helper/fallback untuk analisis satu lowongan.
 - Worker memakai antrean `aiQueue` dan status task disimpan di Redis dengan TTL 7 hari.
+- Jumlah job yang dikirim ke AI bisa diatur lewat `AI_MATCH_JOB_LIMIT` agar bisa dinaikkan ke 50 atau 100 sesuai kapasitas server.
+- Job yang dipilih untuk AI sekarang diranking lagi dari pool kandidat yang lebih besar lewat `AI_MATCH_CANDIDATE_POOL_LIMIT`, supaya hasilnya lebih mengikuti isi CV.
 - Sesi guest preview di Redis bersifat sementara, sekitar 30 menit.
 - Parsing PDF membutuhkan PDF berbasis teks, bukan hasil scan gambar.
 - CORS development lebih longgar, sedangkan production memakai whitelist origin.

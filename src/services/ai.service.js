@@ -8,11 +8,163 @@ export const processJobToAi = async (jobData) => {
   const { userId, cvId } = jobData;
 
   const hasItems = (value) => Array.isArray(value) && value.length > 0;
+  const normalizeText = (value) =>
+    (value || "")
+      .toString()
+      .toLowerCase()
+      .replace(/[^a-z0-9+.#/\s-]/gi, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+
+  const buildKeywordSet = (text) => {
+    const normalized = normalizeText(text);
+    if (!normalized) return new Set();
+
+    const tokens = normalized.split(" ").filter((token) => token.length >= 3);
+    const phrases = [];
+
+    for (let i = 0; i < tokens.length - 1; i++) {
+      phrases.push(`${tokens[i]} ${tokens[i + 1]}`);
+    }
+
+    return new Set([...tokens, ...phrases]);
+  };
+
+  const extractSkillPhrases = (text) => {
+    const normalized = normalizeText(text);
+    if (!normalized) return new Set();
+
+    const skillPhrases = [
+      "machine learning",
+      "deep learning",
+      "computer vision",
+      "natural language processing",
+      "artificial intelligence",
+      "ai engineer",
+      "ml engineer",
+      "data scientist",
+      "data analysis",
+      "data analyst",
+      "python",
+      "javascript",
+      "typescript",
+      "node.js",
+      "react",
+      "next.js",
+      "vue",
+      "angular",
+      "php",
+      "laravel",
+      "java",
+      "spring boot",
+      "c#",
+      "dotnet",
+      "flutter",
+      "kotlin",
+      "swift",
+      "fastapi",
+      "flask",
+      "django",
+      "tensorflow",
+      "pytorch",
+      "scikit learn",
+      "keras",
+      "nlp",
+      "docker",
+      "kubernetes",
+      "postgresql",
+      "mysql",
+      "mongodb",
+      "redis",
+      "rest api",
+      "graphql",
+      "git",
+      "linux",
+      "aws",
+      "gcp",
+      "azure",
+      "ci cd",
+      "testing",
+      "automation",
+      "web developer",
+      "frontend",
+      "backend",
+      "fullstack",
+      "ui ux",
+      "mobile developer",
+      "it support",
+      "technical support",
+    ];
+
+    return new Set(
+      skillPhrases.filter((phrase) => normalized.includes(phrase)),
+    );
+  };
+
+  const scoreTextOverlap = (sourceKeywords, text) => {
+    if (!sourceKeywords.size) return 0;
+
+    const normalized = normalizeText(text);
+    if (!normalized) return 0;
+
+    let score = 0;
+    for (const keyword of sourceKeywords) {
+      if (normalized.includes(keyword)) {
+        score += keyword.includes(" ") ? 3 : 1;
+      }
+    }
+
+    return score;
+  };
+
+  const inferDomainBoost = (text) => {
+    const normalized = normalizeText(text);
+    if (!normalized) return 0;
+
+    const weightedKeywords = [
+      ["machine learning", 6],
+      ["deep learning", 6],
+      ["computer vision", 6],
+      ["natural language processing", 6],
+      ["nlp", 5],
+      ["ai engineer", 8],
+      ["artificial intelligence", 8],
+      ["data scientist", 5],
+      ["ml engineer", 7],
+      ["python", 3],
+      ["pytorch", 4],
+      ["tensorflow", 4],
+      ["scikit learn", 4],
+      ["fastapi", 2],
+      ["flask", 2],
+      ["docker", 2],
+      ["postgresql", 2],
+      ["javascript", 2],
+      ["typescript", 2],
+      ["web developer", 3],
+      ["frontend", 2],
+      ["backend", 2],
+      ["fullstack", 2],
+      ["it support", 2],
+    ];
+
+    let boost = 0;
+    for (const [keyword, weight] of weightedKeywords) {
+      if (normalized.includes(keyword)) {
+        boost += weight;
+      }
+    }
+
+    return boost;
+  };
 
   const cv = await cvRepository.getCvArchiveById(cvId);
   if (!cv || !cv.raw_text) {
     throw new Error(`CV not found or raw_text is empty for cvId: ${cvId}`);
   }
+
+  const cvKeywords = buildKeywordSet(cv.raw_text);
+  const cvSkillPhrases = extractSkillPhrases(cv.raw_text);
 
   const userProfile = await userRepository.findById(userId);
   if (!userProfile) {
@@ -38,9 +190,12 @@ export const processJobToAi = async (jobData) => {
     `[AI Service] User Profile - Education: ${userProfile.education_level}, Gender: ${userProfile.gender}, City: ${userProfile.city}, Age: ${userAge}`,
   );
 
+  const candidatePoolLimit = config.aiMatchCandidatePoolLimit || 200;
+  const aiMatchJobLimit = config.aiMatchJobLimit || 20;
+
   let filteredJobs = await jobRepository.findAll({
     page: 1,
-    limit: 20,
+    limit: candidatePoolLimit,
     education_level: userProfile.education_level || undefined,
     gender: userProfile.gender || undefined,
     city: userProfile.city || undefined,
@@ -58,7 +213,7 @@ export const processJobToAi = async (jobData) => {
 
     filteredJobs = await jobRepository.findAll({
       page: 1,
-      limit: 20,
+      limit: candidatePoolLimit,
       education_level: userProfile.education_level || undefined,
       gender: userProfile.gender || undefined,
       minAge: userAge || undefined,
@@ -82,11 +237,76 @@ export const processJobToAi = async (jobData) => {
     throw new Error(`No jobs found after filtering for user: ${userId}`);
   }
 
+  const rankedJobs = jobsArray
+    .map((job) => {
+      const jobText = [
+        job.title,
+        job.company_name,
+        job.requirements,
+        Array.isArray(job.skills) ? job.skills.join(" ") : "",
+        job.job_type,
+        job.work_system,
+        job.education_level,
+        job.gender_required,
+        job.location,
+        job.city,
+        job.province,
+      ].join(" ");
+
+      const jobSkillText = Array.isArray(job.skills)
+        ? job.skills.join(" ")
+        : "";
+      const jobSkillSet = extractSkillPhrases(jobSkillText);
+      const jobTextSet = buildKeywordSet(jobText);
+
+      const skillOverlap = [...cvSkillPhrases].filter((skill) => {
+        return (
+          jobSkillSet.has(skill) ||
+          jobTextSet.has(skill) ||
+          normalizeText(jobText).includes(skill)
+        );
+      }).length;
+
+      const titleBoost = [...cvSkillPhrases].reduce((score, skill) => {
+        if (normalizeText(job.title).includes(skill)) {
+          return score + 4;
+        }
+
+        if (normalizeText(job.requirements).includes(skill)) {
+          return score + 2;
+        }
+
+        return score;
+      }, 0);
+
+      const overlapScore = scoreTextOverlap(cvKeywords, jobText);
+      const domainBoost = inferDomainBoost(jobText);
+
+      return {
+        ...job,
+        _relevanceScore:
+          skillOverlap * 5 + titleBoost + overlapScore + domainBoost,
+      };
+    })
+    .sort((left, right) => {
+      if (right._relevanceScore !== left._relevanceScore) {
+        return right._relevanceScore - left._relevanceScore;
+      }
+
+      return new Date(right.created_at || 0) - new Date(left.created_at || 0);
+    });
+
+  const selectedJobs = rankedJobs.slice(0, aiMatchJobLimit);
+
+  console.log(
+    `[AI Service] Ranked ${rankedJobs.length} candidate jobs from CV text and selected top ${selectedJobs.length} jobs for AI`,
+  );
+
   const payload = {
     user_id: userId,
     cv_id: cvId,
     cv_text: cv.raw_text,
-    filtered_jobs: jobsArray.map((job) => ({
+    filtered_jobs: selectedJobs.map((job) => ({
       job_id: job.id,
       title: job.title,
       company_name: job.company_name,
@@ -97,7 +317,7 @@ export const processJobToAi = async (jobData) => {
   };
 
   console.log(
-    `[AI Service] Processing CV for user ${userId}, sending ${payload.filtered_jobs.length} filtered jobs (optimized for 1GB RAM)`,
+    `[AI Service] Processing CV for user ${userId}, sending ${payload.filtered_jobs.length} CV-ranked jobs (limit=${aiMatchJobLimit})`,
   );
 
   // Safety check: Ensure there are jobs to process before calling AI
