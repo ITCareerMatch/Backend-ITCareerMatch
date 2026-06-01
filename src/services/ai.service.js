@@ -107,21 +107,43 @@ export const processJobToAi = async (jobData) => {
     );
   }
 
-  const { data: aiResponse } = await axios.post(
-    `${config.aiApiUrl}/internal/ai/match`,
-    payload,
-    {
-      headers: {
-        "Content-Type": "application/json",
-        "X-Internal-Request": config.internalApiKey,
+  let aiResponse = null;
+  try {
+    console.log(
+      `[AI Service] Calling AI API at: ${config.aiApiUrl}/internal/ai/match with ${payload.filtered_jobs.length} jobs`,
+    );
+    const response = await axios.post(
+      `${config.aiApiUrl}/internal/ai/match`,
+      payload,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "X-Internal-Request": config.internalApiKey,
+        },
+        timeout: 30000, // 30 second timeout
       },
-    },
-  );
+    );
+    aiResponse = response.data;
+    console.log(
+      `[AI Response] Received from AI service:`,
+      JSON.stringify(aiResponse, null, 2).substring(0, 2000),
+    );
+  } catch (error) {
+    console.error(
+      `[AI Service] ERROR calling AI API: ${error.response?.status || error.code}`,
+      error.response?.data || error.message,
+    );
+    console.error(
+      `[AI Service] AI API URL: ${config.aiApiUrl}`,
+      `| Internal Key: ${config.internalApiKey ? "SET" : "NOT SET"}`,
+    );
+    // Continue with fallback instead of throwing
+    aiResponse = { recommendations: [] };
+  }
 
-  console.log(
-    `[AI Response] Received from AI service:`,
-    JSON.stringify(aiResponse, null, 2).substring(0, 2000),
-  );
+  if (!aiResponse) {
+    aiResponse = { recommendations: [] };
+  }
 
   const { extracted_skills, recommendations } = aiResponse;
 

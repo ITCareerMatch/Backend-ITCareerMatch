@@ -75,13 +75,21 @@ class JobRepository {
       )`;
     }
 
+    // Normalize gender: convert English (female/male) to Indonesian (perempuan/laki-laki)
+    let normalizedGender = null;
     if (gender) {
       const genderLower = gender.toLowerCase();
-      if (genderLower === "laki-laki") {
-        baseWhere += ` AND (j.gender_required = 'Laki-laki saja' OR j.gender_required = 'tanpa ketentuan')`;
-      } else if (genderLower === "perempuan") {
-        baseWhere += ` AND (j.gender_required = 'Perempuan saja' OR j.gender_required = 'tanpa ketentuan')`;
+      if (genderLower === "laki-laki" || genderLower === "male") {
+        normalizedGender = "laki-laki";
+      } else if (genderLower === "perempuan" || genderLower === "female") {
+        normalizedGender = "perempuan";
       }
+    }
+
+    if (normalizedGender === "laki-laki") {
+      baseWhere += ` AND (j.gender_required = 'Laki-laki saja' OR j.gender_required = 'tanpa ketentuan' OR j.gender_required IS NULL)`;
+    } else if (normalizedGender === "perempuan") {
+      baseWhere += ` AND (j.gender_required = 'Perempuan saja' OR j.gender_required = 'tanpa ketentuan' OR j.gender_required IS NULL)`;
     }
 
     if (minSalary !== undefined) {
