@@ -130,6 +130,7 @@ Bagian ini menjaga hubungan antara endpoint, service, dan tabel Supabase Postgre
 - `GET /api/v1/jobs/:id`
 - `POST /api/v1/cv/preview`
 - `POST /api/v1/chatbot/chat`
+- `POST /api/v1/chatbot/tts`
 - `GET /api/v1/chatbot/voices`
 
 ### Terproteksi
@@ -145,7 +146,6 @@ Bagian ini menjaga hubungan antara endpoint, service, dan tabel Supabase Postgre
 - `GET /api/v1/jobs/recommendations?cv_id=...`
 - `GET /api/v1/analysis/history`
 - `GET /api/v1/analysis/:id`
-- `POST /api/v1/chatbot/tts`
 
 ### Internal
 

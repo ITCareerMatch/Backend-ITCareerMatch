@@ -98,6 +98,7 @@ http://localhost:3000/api-docs
 - `GET /api/v1/jobs/:id` - detail lowongan
 - `POST /api/v1/cv/preview` - buat sesi preview CV guest di Redis
 - `POST /api/v1/chatbot/chat` - chat karier, login opsional untuk konteks CV
+- `POST /api/v1/chatbot/tts` - konversi teks ke audio WAV (guest dan user login boleh mengakses)
 - `GET /api/v1/chatbot/voices` - daftar suara TTS yang tersedia
 
 ## Endpoint Terproteksi
@@ -113,7 +114,6 @@ http://localhost:3000/api-docs
 - `GET /api/v1/jobs/recommendations?cv_id=...` - rekomendasi lowongan untuk CV tertentu
 - `GET /api/v1/analysis/history` - riwayat analisis
 - `GET /api/v1/analysis/:id` - detail analisis
-- `POST /api/v1/chatbot/tts` - konversi teks ke audio WAV
 
 ## Endpoint Internal
 

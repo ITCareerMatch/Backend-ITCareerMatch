@@ -28,11 +28,11 @@ const ttsLimiter = rateLimit({
  *   post:
  *     summary: Chat with optional CV personalization
  *     tags: [Chatbot]
- *     security:
- *       - bearerAuth: []
+ *     security: []
  *     description: |
  *       If an access token is provided, the backend attaches the user's latest CV text
  *       as `raw_text` to the AI request for a personalized reply. Otherwise it returns a general reply.
+ *       Both guests and authenticated users can access this endpoint.
  *     requestBody:
  *       required: true
  *       content:
@@ -73,12 +73,12 @@ const ttsLimiter = rateLimit({
  *   post:
  *     summary: Convert text to speech
  *     tags: [Chatbot]
- *     security:
- *       - bearerAuth: []
+ *     security: []
  *     description: |
  *       Convert text to a WAV audio response.
  *       Handle the response as a blob or arraybuffer on the frontend, not as JSON.
  *       The request may take a few seconds because the text is processed in chunks.
+ *       Both guests and authenticated users can access this endpoint.
  *     requestBody:
  *       required: true
  *       content:
