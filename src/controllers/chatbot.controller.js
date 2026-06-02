@@ -104,13 +104,17 @@ function extractWavData(buffer) {
     const chunkId = buffer.toString("utf8", offset, offset + 4);
     const chunkSize = buffer.readUInt32LE(offset + 4);
     // Groq TTS stream uses 0xFFFFFFFF for chunk sizes, we calculate actual if so
-    const actualChunkSize = chunkSize === 0xFFFFFFFF ? buffer.length - offset - 8 : chunkSize;
-    
+    const actualChunkSize =
+      chunkSize === 0xffffffff ? buffer.length - offset - 8 : chunkSize;
+
     if (chunkId === "fmt ") {
       fmt = buffer.slice(offset + 8, offset + 8 + actualChunkSize);
     } else if (chunkId === "data") {
-      data = buffer.slice(offset + 8, Math.min(offset + 8 + actualChunkSize, buffer.length));
-      break; 
+      data = buffer.slice(
+        offset + 8,
+        Math.min(offset + 8 + actualChunkSize, buffer.length),
+      );
+      break;
     }
     offset += 8 + actualChunkSize;
     if (actualChunkSize % 2 !== 0) offset += 1;
@@ -140,15 +144,15 @@ function combineWavBuffers(buffers) {
   const fileSize = 4 + 8 + fmt.length + 8 + dataSize;
 
   const header = Buffer.alloc(12 + 8 + fmt.length + 8);
-  
+
   header.write("RIFF", 0);
   header.writeUInt32LE(fileSize, 4);
   header.write("WAVE", 8);
-  
+
   header.write("fmt ", 12);
   header.writeUInt32LE(fmt.length, 16);
   fmt.copy(header, 20);
-  
+
   const dataOffset = 20 + fmt.length;
   header.write("data", dataOffset);
   header.writeUInt32LE(dataSize, dataOffset + 4);
@@ -166,22 +170,7 @@ async function chat(req, res, next) {
         .json({ success: false, message: "message is required" });
     }
 
-    // Resolve user identity: session → Bearer token
-    let userId = null;
-    if (req.session?.user?.id) {
-      userId = req.session.user.id;
-    } else {
-      const authHeader = req.headers.authorization;
-      if (authHeader?.startsWith("Bearer ")) {
-        const token = authHeader.split(" ")[1];
-        try {
-          const { data, error } = await supabase.auth.getUser(token);
-          if (!error && data?.user) userId = data.user.id;
-        } catch (e) {
-          console.warn("[Chatbot] Auth check failed:", e.message);
-        }
-      }
-    }
+    const userId = req.user?.id ?? null;
 
     let rawText = cvContext || null;
     if (!rawText && userId) {

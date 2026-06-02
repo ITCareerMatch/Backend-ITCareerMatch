@@ -36,3 +36,20 @@ export const authenticate = async (req, res, next) => {
     next(err);
   }
 };
+
+export const optionalAuth = async (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (authHeader?.startsWith("Bearer ")) {
+    const token = authHeader.split(" ")[1];
+    try {
+      const {
+        data: { user },
+        error,
+      } = await supabase.auth.getUser(token);
+      if (!error && user) req.user = user;
+    } catch (e) {
+      console.warn("Optional auth failed:", e.message);
+    }
+  }
+  next();
+};

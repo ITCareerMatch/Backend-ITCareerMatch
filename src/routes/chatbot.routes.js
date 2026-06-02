@@ -1,6 +1,7 @@
 import express from "express";
 import rateLimit from "express-rate-limit";
 import { chatbotController } from "../controllers/chatbot.controller.js";
+import { optionalAuth } from "../middlewares/auth.middleware.js";
 
 const router = express.Router();
 
@@ -28,7 +29,8 @@ const ttsLimiter = rateLimit({
  *   post:
  *     summary: Chat with optional CV personalization
  *     tags: [Chatbot]
- *     security: []
+ *     security:
+ *       - bearerAuth: []
  *     description: |
  *       If an access token is provided, the backend attaches the user's latest CV text
  *       as `raw_text` to the AI request for a personalized reply. Otherwise it returns a general reply.
@@ -73,7 +75,8 @@ const ttsLimiter = rateLimit({
  *   post:
  *     summary: Convert text to speech
  *     tags: [Chatbot]
- *     security: []
+ *     security:
+ *       - bearerAuth: []
  *     description: |
  *       Convert text to a WAV audio response.
  *       Handle the response as a blob or arraybuffer on the frontend, not as JSON.
@@ -132,7 +135,7 @@ const ttsLimiter = rateLimit({
  *                         type: string
  */
 
-router.post("/chat", chatLimiter, chatbotController.chat);
+router.post("/chat", chatLimiter, optionalAuth, chatbotController.chat);
 router.post("/tts", ttsLimiter, chatbotController.tts);
 router.get("/voices", chatbotController.voices);
 

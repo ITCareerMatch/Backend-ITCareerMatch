@@ -104,12 +104,12 @@ class CvRepository {
   // Get latest CV for user
   async getLatestCvByUserId(userId) {
     const query = `
-      SELECT id, user_id, file_url, file_name, raw_text, cv_source, status, uploaded_at
-      FROM cv_archives
-      WHERE user_id = $1 AND status = 'active'
-      ORDER BY uploaded_at DESC
-      LIMIT 1
-    `;
+    SELECT id, user_id, file_url, file_name, raw_text, cv_source, status, uploaded_at
+    FROM cv_archives
+    WHERE user_id = $1 AND status = 'completed'
+    ORDER BY uploaded_at DESC
+    LIMIT 1
+  `;
     const { rows } = await pool.query(query, [userId]);
     return rows[0] || null;
   }
