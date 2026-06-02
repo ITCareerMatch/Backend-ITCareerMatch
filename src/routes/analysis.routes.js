@@ -55,13 +55,24 @@ const router = express.Router();
  *                       id:
  *                         type: string
  *                         format: uuid
+ *                       user_id:
+ *                         type: string
+ *                         format: uuid
+ *                       cv_id:
+ *                         type: string
+ *                         format: uuid
+ *                       job_id:
+ *                         type: string
+ *                         format: uuid
+ *                       match_score:
+ *                         type: string
+ *                         example: "85.5"
  *                       job_title_snapshot:
  *                         type: string
  *                       company_snapshot:
  *                         type: string
- *                       match_score:
- *                         type: number
- *                         example: 85.5
+ *                       ai_insight:
+ *                         type: string
  *                       analyzed_at:
  *                         type: string
  *                         format: date-time
@@ -112,13 +123,24 @@ const router = express.Router();
  *                     id:
  *                       type: string
  *                       format: uuid
+ *                     user_id:
+ *                       type: string
+ *                       format: uuid
+ *                     cv_id:
+ *                       type: string
+ *                       format: uuid
+ *                     job_id:
+ *                       type: string
+ *                       format: uuid
+ *                     match_score:
+ *                       type: string
+ *                       example: "97.82"
  *                     job_title_snapshot:
  *                       type: string
  *                     company_snapshot:
  *                       type: string
- *                     match_score:
- *                       type: number
- *                       example: 85.5
+ *                     ai_insight:
+ *                       type: string
  *                     analyzed_at:
  *                       type: string
  *                       format: date-time
@@ -132,9 +154,27 @@ const router = express.Router();
  *                       items:
  *                         type: string
  *                       description: Skills lacking compared to job requirements
- *                     ai_insight:
- *                       type: string
- *                       description: Detailed AI analysis and recommendations
+ *                     skill_details:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           id:
+ *                             type: string
+ *                             format: uuid
+ *                           analysis_id:
+ *                             type: string
+ *                             format: uuid
+ *                           skill_id:
+ *                             type: string
+ *                             format: uuid
+ *                           skill_name_snapshot:
+ *                             type: string
+ *                           status:
+ *                             type: string
+ *                             enum: [match, gap]
+ *                           ai_insight:
+ *                             type: string
  *       401:
  *         $ref: '#/components/responses/UnauthorizedError'
  *       404:

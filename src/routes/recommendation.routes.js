@@ -25,8 +25,6 @@ const router = express.Router();
  *           format: uuid
  *         description: CV ID to scope recommendations to a specific uploaded CV
  *     responses:
- *       400:
- *         description: Missing or invalid cv_id
  *       200:
  *         description: Recommended jobs with match analysis
  *         content:
@@ -42,6 +40,9 @@ const router = express.Router();
  *                   items:
  *                     type: object
  *                     properties:
+ *                       analysis_id:
+ *                         type: string
+ *                         format: uuid
  *                       job_id:
  *                         type: string
  *                         format: uuid
@@ -51,20 +52,24 @@ const router = express.Router();
  *                         type: string
  *                       match_score:
  *                         type: number
- *                         example: 88.5
- *                       skill_match:
- *                         type: array
- *                         items:
- *                           type: string
- *                         description: Skills matching job requirements
- *                       skill_gap:
- *                         type: array
- *                         items:
- *                           type: string
- *                         description: Skills needed for the job
- *                       ai_insight:
+ *                         example: 97.82
+ *                       location:
  *                         type: string
- *                         description: AI-generated recommendation insight
+ *                         example: "Jakarta Selatan, DKI Jakarta"
+ *                       external_url:
+ *                         type: string
+ *                         format: uri
+ *                       skill_match_count:
+ *                         type: integer
+ *                         example: 1
+ *                       skill_gap_count:
+ *                         type: integer
+ *                         example: 0
+ *                       analyzed_at:
+ *                         type: string
+ *                         format: date-time
+ *       400:
+ *         description: Missing or invalid cv_id
  *       401:
  *         $ref: '#/components/responses/UnauthorizedError'
  */
