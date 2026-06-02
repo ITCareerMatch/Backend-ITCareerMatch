@@ -75,7 +75,7 @@ class JobRepository {
       )`;
     }
 
-    // Normalize gender: convert English (female/male) to Indonesian (perempuan/laki-laki)
+    // Normalize gender: accept both English and Indonesian values
     let normalizedGender = null;
     if (gender) {
       const genderLower = gender.toLowerCase();
@@ -102,7 +102,6 @@ class JobRepository {
       baseWhere += ` AND (j.salary_max IS NULL OR j.salary_max <= $${values.length})`;
     }
 
-    // Job type: translate dari enum key ke nilai DB
     if (job_type) {
       const dbJobType = JOB_TYPE_MAP[job_type.toLowerCase()];
       if (dbJobType) {
@@ -111,7 +110,6 @@ class JobRepository {
       }
     }
 
-    // Work system: translate dari enum key ke nilai DB
     if (work_system) {
       const dbWorkSystem = WORK_SYSTEM_MAP[work_system.toLowerCase()];
       if (dbWorkSystem) {
@@ -130,13 +128,27 @@ class JobRepository {
 
     const mainQuery = `
       SELECT 
-        j.id, j.title, j.company_name, j.external_url,
-        j.city, j.province, j.location,
-        j.salary_raw, j.salary_min, j.salary_max,
-        j.min_age, j.max_age, j.age_note,
-        j.education_level, j.gender_required,
-        j.job_type, j.work_system,
-        j.requirements, j.created_at, j.updated_at,
+        j.id,
+        j.title,
+        j.category,
+        j.company_name,
+        j.external_url,
+        j.city,
+        j.province,
+        j.location,
+        j.salary_raw,
+        j.salary_min,
+        j.salary_max,
+        j.min_age,
+        j.max_age,
+        j.age_note,
+        j.education_level,
+        j.gender_required,
+        j.job_type,
+        j.work_system,
+        j.requirements,
+        j.created_at,
+        j.updated_at,
         (
           SELECT json_agg(s.name)
           FROM job_skills js
@@ -159,13 +171,34 @@ class JobRepository {
 
   async findById(id) {
     const query = `
-      SELECT j.id, j.title, j.company_name, j.external_url, j.city, j.province, j.location, j.salary_raw, j.salary_min, j.salary_max, j.min_age, j.max_age, j.age_note, j.education_level, j.gender_required, j.job_type, j.work_system, j.requirements, j.created_at, j.updated_at,
-      (
-        SELECT json_agg(s.name)
-        FROM job_skills js
-        JOIN skills s ON s.id = js.skill_id
-        WHERE js.job_id = j.id
-      ) as skills
+      SELECT
+        j.id,
+        j.title,
+        j.category,
+        j.company_name,
+        j.external_url,
+        j.city,
+        j.province,
+        j.location,
+        j.salary_raw,
+        j.salary_min,
+        j.salary_max,
+        j.min_age,
+        j.max_age,
+        j.age_note,
+        j.education_level,
+        j.gender_required,
+        j.job_type,
+        j.work_system,
+        j.requirements,
+        j.created_at,
+        j.updated_at,
+        (
+          SELECT json_agg(s.name)
+          FROM job_skills js
+          JOIN skills s ON s.id = js.skill_id
+          WHERE js.job_id = j.id
+        ) AS skills
       FROM jobs j
       WHERE j.id = $1
     `;

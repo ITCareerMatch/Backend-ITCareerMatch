@@ -8,10 +8,10 @@ export const config = {
   ),
   aiMatchCandidatePoolLimit: Math.min(
     Math.max(
-      parseInt(process.env.AI_MATCH_CANDIDATE_POOL_LIMIT || "200", 10) || 200,
+      parseInt(process.env.AI_MATCH_CANDIDATE_POOL_LIMIT || "600", 10) || 600,
       20,
     ),
-    500,
+    600,
   ),
   supabaseUrl: process.env.SUPABASE_URL,
   supabaseKey: process.env.SUPABASE_KEY,
