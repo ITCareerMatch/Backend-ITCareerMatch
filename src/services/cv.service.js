@@ -8,11 +8,7 @@ import {
   deleteGuestSession,
 } from "../lib/redis-session.js";
 
-/**
- * Convert form input to structured CV text format
- * @param {Object} formData - Form fields from manual CV input
- * @returns {String} Structured CV text
- */
+// Convert form data to CV text format for analysis
 export function convertFormToCvText(formData) {
   if (formData.text && typeof formData.text === "string") {
     return formData.text;
@@ -91,24 +87,32 @@ export function convertFormToCvText(formData) {
   return result;
 }
 
-/**
- * Save CV archive to database
- * @param {Object} params - {userId, file?, cvText, cvSource}
- * @returns {Object} CV archive record
- */
+// Save cv archive to database and return the saved record
 export async function saveCvArchive({
   userId,
   file,
   cvText,
   cvSource = "upload",
+  existingFileUrl = null,
+  existingFileName = null,
 }) {
   try {
-    let fileUrl = null;
-    let fileName = null;
+    let fileUrl = existingFileUrl;
+    let fileName = existingFileName;
 
-    if (file) {
+    if (file && file.buffer) {
       fileUrl = await cvRepository.uploadToSupabase(file);
       fileName = file.originalname;
+    }
+
+    if (!fileName) {
+      if (cvSource === "manual") {
+        const count = await cvRepository.countManualCvsByUserId(userId);
+        fileName = `CV Manual ${count + 1}`;
+      } else if (cvSource === "preview_upgrade") {
+        const count = await cvRepository.countManualCvsByUserId(userId);
+        fileName = `CV Manual ${count + 1}`;
+      }
     }
 
     return cvRepository.saveCvArchive({
@@ -125,11 +129,7 @@ export async function saveCvArchive({
   }
 }
 
-/**
- * Create analysis task for authenticated user
- * @param {Object} params - {userId, cvId, cvText}
- * @returns {String} Task ID
- */
+// Create analysis task in queue and return task ID
 export async function createAnalysisTask({ userId, cvId, cvText }) {
   try {
     const taskId = await addTaskToQueue({
@@ -145,11 +145,7 @@ export async function createAnalysisTask({ userId, cvId, cvText }) {
   }
 }
 
-/**
- * Get task status and result
- * @param {Object} params - {userId, taskId}
- * @returns {Object} {status, result}
- */
+// Get task status and result
 export async function getTaskStatusAndResult({ userId, taskId }) {
   try {
     const status = await getTaskStatus(taskId);
@@ -194,11 +190,7 @@ export async function createGuestPreviewSession({ cvText, file }) {
   }
 }
 
-/**
- * Claim guest session and upgrade to full analysis
- * @param {Object} params - {userId, tempToken}
- * @returns {String} New task ID for full analysis
- */
+// Claim guest session and convert to real CV archive + analysis task
 export async function claimGuestSession({ userId, tempToken }) {
   try {
     const session = await getGuestSession(tempToken);
@@ -207,13 +199,13 @@ export async function claimGuestSession({ userId, tempToken }) {
       throw new Error("Session expired or not found");
     }
 
-    const cvArchive = await cvRepository.saveCvArchive({
+    const cvArchive = await saveCvArchive({
       userId,
-      fileName: session.file_name || null,
-      fileUrl: session.file_url || null,
-      rawText: session.raw_text,
+      file: null,
+      cvText: session.raw_text,
       cvSource: "preview_upgrade",
-      status: "processing",
+      existingFileUrl: session.file_url || null,
+      existingFileName: session.file_name || null,
     });
 
     const taskId = await createAnalysisTask({

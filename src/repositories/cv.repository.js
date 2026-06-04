@@ -88,6 +88,18 @@ class CvRepository {
     await pool.query(query, values);
   }
 
+  // Save manual CV text input
+  async countManualCvsByUserId(userId) {
+    const query = `
+    SELECT COUNT(*) as count
+    FROM cv_archives
+    WHERE user_id = $1 
+    AND file_name LIKE 'CV Manual%'
+  `;
+    const { rows } = await pool.query(query, [userId]);
+    return parseInt(rows[0].count, 10);
+  }
+
   // Get CV skills with skill details
   async getCvSkills(cvId) {
     const query = `
