@@ -336,7 +336,8 @@ class CvController {
           id: cv.id,
           file_name: cv.file_name,
           file_url: cv.file_url,
-          cv_source: cv.cv_source,
+          cv_source:
+            cv.cv_source === "preview_upgrade" ? "manual" : cv.cv_source,
           status: cv.status,
           uploaded_at: cv.uploaded_at,
         })),
