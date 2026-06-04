@@ -89,7 +89,6 @@ export const processJobToAi = async (jobData) => {
     return score;
   };
 
-  // ── Load CV ───────────────────────────────────────────────────────────────
   const cv = await cvRepository.getCvArchiveById(cvId);
   if (!cv || !cv.raw_text) {
     throw new Error(`CV not found or raw_text is empty for cvId: ${cvId}`);
@@ -98,7 +97,6 @@ export const processJobToAi = async (jobData) => {
   const cvKeywordMap = buildKeywordMap(cv.raw_text);
   const cvNormalized = normalizeText(cv.raw_text);
 
-  // ── Load user profile ─────────────────────────────────────────────────────
   const userProfile = await userRepository.findById(userId);
   if (!userProfile) throw new Error(`User not found: ${userId}`);
 
@@ -123,7 +121,7 @@ export const processJobToAi = async (jobData) => {
   const candidatePoolLimit = config.aiMatchCandidatePoolLimit || 600;
   const aiMatchJobLimit = config.aiMatchJobLimit || 20;
 
-  // ── Fetch candidate jobs (no location filter — AI matching is skill-based) ─
+  // Fetch candidate pool of jobs with basic filters
   const filteredJobs = await jobRepository.findAll({
     page: 1,
     limit: candidatePoolLimit,
@@ -140,7 +138,6 @@ export const processJobToAi = async (jobData) => {
 
   console.log(`[AI Service] Candidate pool: ${jobsArray.length} jobs`);
 
-  // ── Category boost ────────────────────────────────────────────────────────
   const inferCategoryBoost = (job) => {
     const category = normalizeText(job.category || "");
     if (!category) return 0;
@@ -152,7 +149,7 @@ export const processJobToAi = async (jobData) => {
     return 0;
   };
 
-  // ── Rank jobs by CV relevance ─────────────────────────────────────────────
+  // Rank jobs by weighted keyword overlap with CV (before calling AI) to select top candidates for AI matching
   const rankedJobs = jobsArray
     .map((job) => {
       const jobText = [
@@ -179,12 +176,9 @@ export const processJobToAi = async (jobData) => {
         cvKeywordMap,
         jobNormalized,
       );
-      // Title match is a strong signal — triple weight
       const titleBonus =
         scoreKeywordOverlapWeighted(cvKeywordMap, titleNormalized) * 3;
-      // Category alignment: flat +20 if job domain matches CV domain
       const categoryBonus = inferCategoryBoost(job);
-      // Extra credit for high-weight (skills section) bigrams in requirements
       let requirementsBonus = 0;
       for (const [keyword, weight] of cvKeywordMap) {
         if (
@@ -217,7 +211,7 @@ export const processJobToAi = async (jobData) => {
       .join(", ")}`,
   );
 
-  // ── Step 1: Batch match (gets match_score only — by AI design) ───────────
+  // Step 1: Call batch AI match endpoint to get match_score for all selected jobs
   const payload = {
     user_id: userId,
     cv_id: cvId,
@@ -228,7 +222,7 @@ export const processJobToAi = async (jobData) => {
       company_name: job.company_name,
       description: (
         job.requirements || `Requirements for ${job.title}`
-      ).substring(0, 200),
+      ).substring(0, 1000),
     })),
   };
 
@@ -272,17 +266,13 @@ export const processJobToAi = async (jobData) => {
     }));
   }
 
-  // ── Step 2: analyze-single for ALL recommendations in parallel ───────────
-  // The batch endpoint (by AI team design) only returns match_score.
-  // skill_match, skill_gap, and ai_insight MUST come from analyze-single.
-  // We run all calls concurrently (Promise.allSettled) to keep latency low.
+  // Step 2: For each recommended job, call analyze-single to get skill_match, skill_gap, and ai_insight
   console.log(
     `[AI Service] Running analyze-single for all ${batchRecommendations.length} jobs in parallel...`,
   );
 
   const analyzeResults = await Promise.allSettled(
     batchRecommendations.map(async (rec) => {
-      // Find the full job record so we can send proper description
       const jobRecord =
         selectedJobs.find((j) => j.id === rec.job_id) ||
         (await jobRepository.findById(rec.job_id)) ||
@@ -298,7 +288,7 @@ export const processJobToAi = async (jobData) => {
             jobRecord.requirements ||
             rec.description ||
             `Requirements for ${rec.job_title || rec.title || ""}`
-          ).substring(0, 500),
+          ).substring(0, 1500),
         },
       };
 
@@ -310,7 +300,7 @@ export const processJobToAi = async (jobData) => {
             "Content-Type": "application/json",
             "X-Internal-Request": config.internalApiKey,
           },
-          timeout: 15000,
+          timeout: 25000,
         },
       );
 
@@ -318,7 +308,7 @@ export const processJobToAi = async (jobData) => {
     }),
   );
 
-  // ── Step 3: Merge batch scores + single analysis into final recommendations
+  // Step 3: Merge batch scores + single analysis into final recommendations
   const finalRecommendations = batchRecommendations.map((rec) => {
     const settled = analyzeResults.find(
       (r) => r.status === "fulfilled" && r.value?.job_id === rec.job_id,
@@ -368,7 +358,7 @@ export const processJobToAi = async (jobData) => {
     };
   });
 
-  // ── Persist extracted skills ──────────────────────────────────────────────
+  // Persist extracted skills
   if (extracted_skills.length > 0) {
     console.log(
       `[AI Service] Updating ${extracted_skills.length} skills for user ${userId}`,
@@ -376,7 +366,7 @@ export const processJobToAi = async (jobData) => {
     await userRepository.updateUserSkills(userId, cvId, extracted_skills);
   }
 
-  // ── Persist recommendations ───────────────────────────────────────────────
+  // Persist recommendations
   if (finalRecommendations.length > 0) {
     console.log(
       `[AI Service] Saving ${finalRecommendations.length} recommendations`,
@@ -429,7 +419,20 @@ export const analyzeGapSkill = async (cvText, jobData) => {
         timeout: 15000,
       },
     );
-    return response.data;
+
+    const analysis = response.data?.analysis || {};
+
+    return {
+      analysis: {
+        job_id: analysis.job_id ?? job_id,
+        match_score: analysis.match_score ?? 0,
+        skill_match: Array.isArray(analysis.skill_match)
+          ? analysis.skill_match
+          : [],
+        skill_gap: Array.isArray(analysis.skill_gap) ? analysis.skill_gap : [],
+        ai_insight: analysis.ai_insight ?? null,
+      },
+    };
   } catch (error) {
     console.error(
       `[AI Service] Gap analysis failed for job ${job_id}:`,

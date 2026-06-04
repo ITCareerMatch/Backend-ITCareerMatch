@@ -77,7 +77,7 @@ class AnalysisService {
             job_id: job.id,
             title: job.title,
             company_name: job.company_name || analysis.company_snapshot || "",
-            description: job.requirements,
+            description: (job.requirements || "").substring(0, 1500),
           });
 
           const lazyAnalysis = lazyResult?.analysis || lazyResult || {};
