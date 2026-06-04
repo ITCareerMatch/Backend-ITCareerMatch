@@ -37,9 +37,8 @@ const corsOptions = {
     if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      console.warn(`[CORS] Potential CORS issue from origin: ${origin}`);
-      // Still allow if you'd like to avoid hard rejections, but log for auditing.
-      callback(null, true);
+      console.warn(`[CORS] Rejected origin: ${origin}`);
+      callback(null, false);
     }
   },
   credentials: true,
@@ -52,6 +51,7 @@ const corsOptions = {
   ],
   optionsSuccessStatus: 200,
   preflightContinue: false,
+  maxAge: 86400,
 };
 
 app.use(cors(corsOptions));
