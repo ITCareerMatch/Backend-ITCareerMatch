@@ -50,8 +50,14 @@ class AnalysisService {
     return analysisRepository.createAnalysisDetails(analysisId, details);
   }
 
-  async getHistory(userId, limit = 100, offset = 0, cvId = null) {
-    return analysisRepository.getAnalysisHistory(userId, limit, offset, cvId);
+  async getHistory(userId, limit = 100, offset = 0, cvId = null, jobId = null) {
+    return analysisRepository.getAnalysisHistory(
+      userId,
+      limit,
+      offset,
+      cvId,
+      jobId,
+    );
   }
 
   async getDetail(analysisId) {

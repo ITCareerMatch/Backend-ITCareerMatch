@@ -4,7 +4,12 @@ class AnalysisController {
   async history(req, res, next) {
     try {
       const userId = req.user?.id;
-      const { page = 1, limit = 10, cvId } = req.validatedQuery ?? req.query;
+      const {
+        page = 1,
+        limit = 10,
+        cvId,
+        job_id,
+      } = req.validatedQuery ?? req.query;
 
       const pageNum = Math.max(1, parseInt(page));
       const limitNum = Math.min(100, Math.max(1, parseInt(limit)));
@@ -15,6 +20,7 @@ class AnalysisController {
         limitNum,
         offset,
         cvId,
+        job_id || null,
       );
       const total = await analysisService.getHistoryCount(userId, cvId);
 

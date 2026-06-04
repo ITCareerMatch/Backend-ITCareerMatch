@@ -95,17 +95,28 @@ class AnalysisRepository {
     return created.rows[0]?.id || null;
   }
 
-  async getAnalysisHistory(userId, limit = 100, offset = 0, cvId = null) {
+  async getAnalysisHistory(
+    userId,
+    limit = 100,
+    offset = 0,
+    cvId = null,
+    jobId = null,
+  ) {
     let query = `
-      SELECT id, user_id, cv_id, job_id, match_score, job_title_snapshot, company_snapshot, ai_insight, analyzed_at
-      FROM analysis_history
-      WHERE user_id = $1
-    `;
+    SELECT id, user_id, cv_id, job_id, match_score, job_title_snapshot, company_snapshot, ai_insight, analyzed_at
+    FROM analysis_history
+    WHERE user_id = $1
+  `;
     const values = [userId];
 
     if (cvId) {
       values.push(cvId);
-      query += ` AND cv_id = $2`;
+      query += ` AND cv_id = $${values.length}`;
+    }
+
+    if (jobId) {
+      values.push(jobId);
+      query += ` AND job_id = $${values.length}`;
     }
 
     query += ` ORDER BY analyzed_at DESC LIMIT $${values.length + 1} OFFSET $${values.length + 2}`;
